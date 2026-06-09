@@ -1,0 +1,31 @@
+import { WhatsappService } from './whatsapp.service';
+import { ConversacionService } from '../../conversacion/service/conversacion.service';
+import { AgenteService } from '../../agente/service/agente.service';
+import { ConfiguracionClienteService } from '../../cliente/service/configuracion-cliente.service';
+import { ClienteService } from '../../cliente/service/cliente.service';
+import { ClinicaToolsService } from './clinica-tools.service';
+import { CalificacionBackgroundService } from './calificacion-background.service';
+import { CampanaService } from '../../campana/service/campana.service';
+import { AgentToolsService } from '../../herramienta/service/agent-tools.service';
+import { BizIntelToolsService } from '../../biz-intel/service/biz-intel-tools.service';
+import { WaWebhookMessage } from '../dto/whatsapp.dto';
+export declare class WhatsappWebhookService {
+    private readonly waService;
+    private readonly conversacionService;
+    private readonly agenteService;
+    private readonly confClienteService;
+    private readonly clienteService;
+    private readonly clinicaTools;
+    private readonly calificacionBg;
+    private readonly campanaService;
+    private readonly agentTools;
+    private readonly bizIntelTools;
+    private readonly logger;
+    constructor(waService: WhatsappService, conversacionService: ConversacionService, agenteService: AgenteService, confClienteService: ConfiguracionClienteService, clienteService: ClienteService, clinicaTools: ClinicaToolsService, calificacionBg: CalificacionBackgroundService, campanaService: CampanaService, agentTools: AgentToolsService, bizIntelTools: BizIntelToolsService);
+    procesarMensajeEntrante(rawMessage: WaWebhookMessage, contactName: string, phoneNumberId: string): Promise<void>;
+    private procesarMensajeDueno;
+    private llamarClaudeConHerramientas;
+    private resolverAgenteEfectivo;
+    private extraerTexto;
+    private encontrarOCrearConversacion;
+}

@@ -1,0 +1,46 @@
+import { Response } from 'express';
+import { WhatsappService } from '../service/whatsapp.service';
+import { WhatsappWebhookService } from '../service/whatsapp-webhook.service';
+import { ConfiguracionClienteService } from '../../cliente/service/configuracion-cliente.service';
+import { WhatsappConfigDto, EnviarMensajeDto, TestConexionDto } from '../dto/whatsapp.dto';
+import { SuccessResponseDto } from '../../../common/dto/success-response.dto';
+export declare class WhatsappController {
+    private readonly waService;
+    private readonly webhookService;
+    private readonly confClienteService;
+    private readonly logger;
+    constructor(waService: WhatsappService, webhookService: WhatsappWebhookService, confClienteService: ConfiguracionClienteService);
+    verificarWebhook(query: any, res: Response): Promise<void>;
+    recibirWebhook(body: any): Promise<string>;
+    obtenerConfig(req: any): Promise<{
+        accessToken: string;
+        phoneNumberId: string;
+        wabaId: string;
+        verifyToken: string;
+        agenteId: string;
+        enabled: boolean;
+    }>;
+    guardarConfig(dto: WhatsappConfigDto, req: any): Promise<SuccessResponseDto>;
+    testConexion(dto: TestConexionDto): Promise<{
+        valida: boolean;
+        info?: any;
+        mensaje: string;
+    }>;
+    obtenerEstado(req: any): Promise<{
+        valida: boolean;
+        stats?: any;
+        mensaje: string;
+    }>;
+    enviarMensaje(dto: EnviarMensajeDto, req: any): Promise<SuccessResponseDto>;
+    obtenerRouting(req: any): Promise<SuccessResponseDto>;
+    guardarRouting(body: any, req: any): Promise<SuccessResponseDto>;
+    obtenerOwnerAgent(req: any): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: {
+            telefono: string;
+            systemPrompt: string;
+        };
+    }>;
+    guardarOwnerAgent(body: any, req: any): Promise<SuccessResponseDto>;
+}

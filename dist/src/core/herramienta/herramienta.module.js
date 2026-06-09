@@ -1,0 +1,29 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HerramientaModule = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const herramienta_entity_1 = require("./entity/herramienta.entity");
+const herramienta_service_1 = require("./service/herramienta.service");
+const agent_tools_service_1 = require("./service/agent-tools.service");
+const herramienta_controller_1 = require("./controller/herramienta.controller");
+const agente_module_1 = require("../agente/agente.module");
+const conversacion_module_1 = require("../conversacion/conversacion.module");
+let HerramientaModule = class HerramientaModule {
+};
+HerramientaModule = __decorate([
+    (0, common_1.Module)({
+        imports: [typeorm_1.TypeOrmModule.forFeature([herramienta_entity_1.Herramienta]), agente_module_1.AgenteModule, conversacion_module_1.ConversacionModule],
+        providers: [herramienta_service_1.HerramientaService, agent_tools_service_1.AgentToolsService],
+        exports: [herramienta_service_1.HerramientaService, agent_tools_service_1.AgentToolsService],
+        controllers: [herramienta_controller_1.HerramientaController],
+    })
+], HerramientaModule);
+exports.HerramientaModule = HerramientaModule;
+//# sourceMappingURL=herramienta.module.js.map
