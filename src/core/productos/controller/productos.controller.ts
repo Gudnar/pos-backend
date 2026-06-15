@@ -29,8 +29,13 @@ export class ProductosController {
 
   @Get()
   @Roles('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO', 'CAJERO', 'VENDEDOR')
-  async listar(@Req() req: any, @Query('subcategoriaId') subcategoriaId?: string, @Query('q') q?: string) {
-    const datos = await this.svc.listar(req.user.clienteId, subcategoriaId, q)
+  async listar(
+    @Req() req: any,
+    @Query('subcategoriaId') subcategoriaId?: string,
+    @Query('q') q?: string,
+    @Query('soloActivos') soloActivos?: string,
+  ) {
+    const datos = await this.svc.listar(req.user.clienteId, subcategoriaId, q, soloActivos === 'true')
     return { finalizado: true, mensaje: 'OK', datos }
   }
 

@@ -83,6 +83,22 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'precio_venta_sugerido', type: 'decimal', precision: 15, scale: 4, nullable: true }),
     __metadata("design:type", Number)
 ], ItemOrdenImportacion.prototype, "precioVentaSugerido", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'precio_venta_manual', type: 'decimal', precision: 15, scale: 4, nullable: true }),
+    __metadata("design:type", Number)
+], ItemOrdenImportacion.prototype, "precioVentaManual", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'precio_venta_con_iva', type: 'decimal', precision: 15, scale: 4, nullable: true }),
+    __metadata("design:type", Number)
+], ItemOrdenImportacion.prototype, "precioVentaConIva", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'utilidad_tonelada', type: 'decimal', precision: 15, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], ItemOrdenImportacion.prototype, "utilidadTonelada", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'utilidad_tonelada_con_iva', type: 'decimal', precision: 15, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], ItemOrdenImportacion.prototype, "utilidadToneladaConIva", void 0);
 ItemOrdenImportacion = __decorate([
     (0, typeorm_1.Entity)({ name: 'logistica_item_orden', schema: process.env.DB_SCHEMA || 'public' }),
     __metadata("design:paramtypes", [Object])

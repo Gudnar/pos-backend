@@ -13,11 +13,12 @@ export class CategoriasProductoService {
     private readonly repo: Repository<CategoriaProducto>,
   ) {}
 
-  async listar(clienteId: string, q?: string): Promise<CategoriaProducto[]> {
+  async listar(clienteId: string, q?: string, soloActivos = false): Promise<CategoriaProducto[]> {
     const qb = this.repo
       .createQueryBuilder('c')
       .where('c.cliente_id = :clienteId AND c._estado = :estado', { clienteId, estado: Status.ACTIVE })
       .orderBy('c.nombre', 'ASC')
+    if (soloActivos) qb.andWhere('c.activo = true')
     if (q && q.trim()) {
       qb.andWhere('LOWER(c.nombre) LIKE LOWER(:q)', { q: `%${q.trim()}%` })
     }

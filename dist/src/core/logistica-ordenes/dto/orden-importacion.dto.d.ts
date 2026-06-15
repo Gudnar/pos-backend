@@ -50,6 +50,10 @@ export declare class ProponerPreciosDto {
     ajusteFijo?: number;
     redondeo?: RedondeoFormulaDto;
 }
+export declare class PrecioVentaManualItemDto {
+    itemId: string;
+    precioVenta: number;
+}
 export declare class CerrarOrdenDto {
     margenPorcentaje?: number;
     formula?: FormulaDto;
@@ -57,4 +61,6 @@ export declare class CerrarOrdenDto {
     tiposCambioOverride?: GastoOverrideDto[];
     ingresarInventario?: boolean;
     sucursalId?: string;
+    tasaIva?: number;
+    preciosVentaManual?: PrecioVentaManualItemDto[];
 }

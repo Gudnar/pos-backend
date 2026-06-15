@@ -54,6 +54,9 @@ export class OrdenImportacion extends AuditoriaEntity {
   @Column({ name: 'unidades_totales', type: 'int', nullable: true })
   unidadesTotales?: number
 
+  @Column({ name: 'tasa_iva', type: 'decimal', precision: 5, scale: 4, nullable: true })
+  tasaIva?: number
+
   constructor(data?: Partial<OrdenImportacion>) {
     super(data)
     if (data) Object.assign(this, data)

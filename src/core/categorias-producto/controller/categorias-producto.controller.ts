@@ -13,8 +13,8 @@ export class CategoriasProductoController {
   constructor(private readonly svc: CategoriasProductoService) {}
 
   @Get()
-  async listar(@Req() req: any, @Query('q') q?: string) {
-    const datos = await this.svc.listar(req.user.clienteId, q)
+  async listar(@Req() req: any, @Query('q') q?: string, @Query('soloActivos') soloActivos?: string) {
+    const datos = await this.svc.listar(req.user.clienteId, q, soloActivos === 'true')
     return { finalizado: true, mensaje: 'OK', datos }
   }
 

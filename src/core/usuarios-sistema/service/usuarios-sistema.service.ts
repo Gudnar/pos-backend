@@ -47,6 +47,7 @@ export class UsuariosSistemaService {
       nombres: usuarioData.nombres,
       apellidos: usuarioData.apellidos,
       correoElectronico: usuarioData.correoElectronico,
+      telefono: usuarioData.telefono,
       rol: usuarioData.rol,
       clienteId,
       estado,

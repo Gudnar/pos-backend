@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { IsArray, IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested } from 'class-validator'
+import { IsArray, IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested, IsPositive } from 'class-validator'
 
 export class CreateOrdenImportacionDto {
   @IsOptional() @IsString() @MaxLength(50)
@@ -125,6 +125,14 @@ export class ProponerPreciosDto {
   redondeo?: RedondeoFormulaDto
 }
 
+export class PrecioVentaManualItemDto {
+  @IsUUID()
+  itemId: string
+
+  @IsNumber() @IsPositive()
+  precioVenta: number
+}
+
 export class CerrarOrdenDto {
   @IsOptional() @IsNumber() @Min(0)
   margenPorcentaje?: number
@@ -143,4 +151,10 @@ export class CerrarOrdenDto {
 
   @IsOptional() @IsUUID()
   sucursalId?: string
+
+  @IsOptional() @IsNumber() @Min(0)
+  tasaIva?: number
+
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => PrecioVentaManualItemDto)
+  preciosVentaManual?: PrecioVentaManualItemDto[]
 }

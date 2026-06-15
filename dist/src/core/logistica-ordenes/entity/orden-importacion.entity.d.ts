@@ -17,5 +17,6 @@ export declare class OrdenImportacion extends AuditoriaEntity {
     totalGastosMonedaBase?: number;
     costoTotalMonedaBase?: number;
     unidadesTotales?: number;
+    tasaIva?: number;
     constructor(data?: Partial<OrdenImportacion>);
 }

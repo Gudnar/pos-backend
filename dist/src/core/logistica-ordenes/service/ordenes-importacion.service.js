@@ -191,9 +191,13 @@ let OrdenesImportacionService = class OrdenesImportacionService {
         const totalGastosPrecioBase = gastosParaPrecio.reduce((s, g) => s + Number(g.monto) * (tcPrecioMap.get(g.id) ?? Number(g.tipoCambio)), 0);
         const totalProductosBase = items.reduce((s, i) => s + Number(i.subtotalMonedaBase ?? 0), 0);
         const unidadesTotales = items.reduce((s, i) => s + Number(i.cantidadUnidades), 0);
+        if (dto.tasaIva != null)
+            orden.tasaIva = dto.tasaIva;
+        const precioManualMap = new Map((dto.preciosVentaManual ?? []).map((p) => [p.itemId, p.precioVenta]));
+        const modoDirecto = precioManualMap.size > 0;
         const preciosPropuestos = [];
         for (const item of items) {
-            if (!item.productoId || !item.costoTotalUnitario)
+            if (!item.costoTotalUnitario)
                 continue;
             let factorPrecio;
             if (orden.metodoDistribucion === 'POR_CANTIDAD') {
@@ -209,7 +213,19 @@ let OrdenesImportacionService = class OrdenesImportacionService {
                 : Number(item.costoTotalUnitario);
             let precioSugerido;
             let margen = 0;
-            if (dto.formula) {
+            if (modoDirecto && precioManualMap.has(item.id)) {
+                const pvManual = precioManualMap.get(item.id);
+                item.precioVentaManual = pvManual;
+                precioSugerido = pvManual;
+                margen = costoUnitPrecio > 0 ? ((pvManual / costoUnitPrecio) - 1) * 100 : 0;
+                if (dto.tasaIva != null) {
+                    const iva = Number(dto.tasaIva);
+                    item.precioVentaConIva = pvManual * (1 + iva);
+                    item.utilidadTonelada = (pvManual - Number(item.costoTotalUnitario)) * 1000;
+                    item.utilidadToneladaConIva = (item.precioVentaConIva - Number(item.costoTotalUnitario)) * 1000;
+                }
+            }
+            else if (dto.formula) {
                 const baseVal = dto.formula.base === 'costoProducto'
                     ? Number(item.precioUnitarioMonedaBase)
                     : costoUnitPrecio;
@@ -223,37 +239,44 @@ let OrdenesImportacionService = class OrdenesImportacionService {
             item.margenAplicado = margen;
             item.precioVentaSugerido = precioSugerido;
             Object.assign(item, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
-            const gastosDesc = gastosParaPrecio.length < gastos.length
-                ? ` | Gastos seleccionados: ${gastosParaPrecio.length}/${gastos.length}`
-                : '';
-            const tcDesc = dto.tiposCambioOverride?.length
-                ? ` | TC overrides: ${dto.tiposCambioOverride.length}`
-                : '';
-            const notasPrecio = dto.formula
-                ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
-                : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`;
-            let precio = await this.precioRepo.findOne({
-                where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: constants_1.Status.ACTIVE },
-            });
-            if (precio) {
-                Object.assign(precio, { precio: precioSugerido, notas: notasPrecio, transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
-            }
-            else {
-                precio = this.precioRepo.create({
-                    productoId: item.productoId, clienteId, tipo: 'LOGISTICA',
-                    precio: precioSugerido, moneda: 'BASE', cantidadMin: 1, activo: true,
-                    notas: notasPrecio, estado: constants_1.Status.ACTIVE,
-                    transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioModificacion,
+            if (item.productoId) {
+                const gastosDesc = gastosParaPrecio.length < gastos.length
+                    ? ` | Gastos seleccionados: ${gastosParaPrecio.length}/${gastos.length}`
+                    : '';
+                const tcDesc = dto.tiposCambioOverride?.length
+                    ? ` | TC overrides: ${dto.tiposCambioOverride.length}`
+                    : '';
+                const notasPrecio = modoDirecto
+                    ? `Costo/kg: ${costoUnitPrecio.toFixed(4)} | P.U. Venta directo: ${precioSugerido.toFixed(4)}${dto.tasaIva != null ? ` | IVA: ${(Number(dto.tasaIva) * 100).toFixed(2)}%` : ''}`
+                    : dto.formula
+                        ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
+                        : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`;
+                let precio = await this.precioRepo.findOne({
+                    where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: constants_1.Status.ACTIVE },
+                });
+                if (precio) {
+                    Object.assign(precio, { precio: precioSugerido, notas: notasPrecio, transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
+                }
+                else {
+                    precio = this.precioRepo.create({
+                        productoId: item.productoId, clienteId, tipo: 'LOGISTICA',
+                        precio: precioSugerido, moneda: 'BASE', cantidadMin: 1, activo: true,
+                        notas: notasPrecio, estado: constants_1.Status.ACTIVE,
+                        transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioModificacion,
+                    });
+                }
+                await this.precioRepo.save(precio);
+                preciosPropuestos.push({
+                    productoId: item.productoId,
+                    costoContable: item.costoTotalUnitario,
+                    costoParaPrecio: costoUnitPrecio,
+                    margen,
+                    precioSugerido,
+                    precioVentaConIva: item.precioVentaConIva ?? null,
+                    utilidadTonelada: item.utilidadTonelada ?? null,
+                    utilidadToneladaConIva: item.utilidadToneladaConIva ?? null,
                 });
             }
-            await this.precioRepo.save(precio);
-            preciosPropuestos.push({
-                productoId: item.productoId,
-                costoContable: item.costoTotalUnitario,
-                costoParaPrecio: costoUnitPrecio,
-                margen,
-                precioSugerido,
-            });
         }
         await this.itemRepo.save(items);
         Object.assign(orden, { estadoOrden: 'CERRADO', transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });

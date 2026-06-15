@@ -51,6 +51,18 @@ export class ItemOrdenImportacion extends AuditoriaEntity {
   @Column({ name: 'precio_venta_sugerido', type: 'decimal', precision: 15, scale: 4, nullable: true })
   precioVentaSugerido?: number
 
+  @Column({ name: 'precio_venta_manual', type: 'decimal', precision: 15, scale: 4, nullable: true })
+  precioVentaManual?: number
+
+  @Column({ name: 'precio_venta_con_iva', type: 'decimal', precision: 15, scale: 4, nullable: true })
+  precioVentaConIva?: number
+
+  @Column({ name: 'utilidad_tonelada', type: 'decimal', precision: 15, scale: 2, nullable: true })
+  utilidadTonelada?: number
+
+  @Column({ name: 'utilidad_tonelada_con_iva', type: 'decimal', precision: 15, scale: 2, nullable: true })
+  utilidadToneladaConIva?: number
+
   constructor(data?: Partial<ItemOrdenImportacion>) {
     super(data)
     if (data) Object.assign(this, data)

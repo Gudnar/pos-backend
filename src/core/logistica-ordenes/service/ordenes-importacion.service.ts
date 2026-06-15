@@ -9,7 +9,7 @@ import { PrecioProducto } from '../../productos/entity/precio-producto.entity'
 import { LotesService } from '../../lotes/service/lotes.service'
 import { Status, Transacccion } from '../../../common/constants'
 import { Messages } from '../../../common/constants/response-messages'
-import { CreateOrdenImportacionDto, UpdateOrdenImportacionDto, CerrarOrdenDto, FormulaDto, ProponerPreciosDto, ComponenteFormulaDto } from '../dto/orden-importacion.dto'
+import { CreateOrdenImportacionDto, UpdateOrdenImportacionDto, CerrarOrdenDto, FormulaDto, ProponerPreciosDto, ComponenteFormulaDto, PrecioVentaManualItemDto } from '../dto/orden-importacion.dto'
 
 function aplicarRedondeo(precio: number, redondeo?: { tipo: string; multiplo?: number }): number {
   if (!redondeo || redondeo.tipo === 'ninguno') return precio
@@ -206,10 +206,19 @@ export class OrdenesImportacionService {
       (s, i) => s + Number(i.cantidadUnidades), 0,
     )
 
+    // Guardar tasaIva en la orden si viene en el DTO
+    if (dto.tasaIva != null) orden.tasaIva = dto.tasaIva
+
+    // Mapa de precios directos por ítem (modo precio directo)
+    const precioManualMap = new Map<string, number>(
+      (dto.preciosVentaManual ?? []).map((p: PrecioVentaManualItemDto) => [p.itemId, p.precioVenta]),
+    )
+    const modoDirecto = precioManualMap.size > 0
+
     // ── Proponer precios ──────────────────────────────────────────────────
     const preciosPropuestos: any[] = []
     for (const item of items as ItemOrdenImportacion[]) {
-      if (!item.productoId || !item.costoTotalUnitario) continue
+      if (!item.costoTotalUnitario) continue  // skip items without calculated cost
 
       // Costo unitario para precio (con gastos/TC seleccionados)
       let factorPrecio: number
@@ -224,16 +233,31 @@ export class OrdenesImportacionService {
         ? costoItemPrecio / Number(item.cantidadUnidades)
         : Number(item.costoTotalUnitario)
 
-      // Aplicar fórmula o margen simple
       let precioSugerido: number
       let margen = 0
-      if (dto.formula) {
+
+      if (modoDirecto && precioManualMap.has(item.id)) {
+        // ── MODO PRECIO DIRECTO ──────────────────────────────────────────
+        const pvManual = precioManualMap.get(item.id)!
+        item.precioVentaManual = pvManual
+        precioSugerido = pvManual
+        margen = costoUnitPrecio > 0 ? ((pvManual / costoUnitPrecio) - 1) * 100 : 0
+
+        if (dto.tasaIva != null) {
+          const iva = Number(dto.tasaIva)
+          item.precioVentaConIva = pvManual * (1 + iva)
+          item.utilidadTonelada = (pvManual - Number(item.costoTotalUnitario)) * 1000
+          item.utilidadToneladaConIva = (item.precioVentaConIva - Number(item.costoTotalUnitario)) * 1000
+        }
+      } else if (dto.formula) {
+        // ── MODO FÓRMULA ─────────────────────────────────────────────────
         const baseVal = dto.formula.base === 'costoProducto'
           ? Number(item.precioUnitarioMonedaBase)
           : costoUnitPrecio
         precioSugerido = aplicarFormula(baseVal, dto.formula)
         margen = costoUnitPrecio > 0 ? ((precioSugerido / costoUnitPrecio) - 1) * 100 : 0
       } else {
+        // ── MODO MARGEN SIMPLE ───────────────────────────────────────────
         margen = Number(dto.margenPorcentaje ?? 0)
         precioSugerido = costoUnitPrecio * (1 + margen / 100)
       }
@@ -242,39 +266,45 @@ export class OrdenesImportacionService {
       item.precioVentaSugerido = precioSugerido
       Object.assign(item, { transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
 
-      // Notas descriptivas del cálculo para trazabilidad
-      const gastosDesc = gastosParaPrecio.length < (gastos as GastoLogistica[]).length
-        ? ` | Gastos seleccionados: ${gastosParaPrecio.length}/${(gastos as GastoLogistica[]).length}`
-        : ''
-      const tcDesc = dto.tiposCambioOverride?.length
-        ? ` | TC overrides: ${dto.tiposCambioOverride.length}`
-        : ''
-      const notasPrecio = dto.formula
-        ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
-        : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`
+      // Guardar en catálogo de precios (solo ítems vinculados al catálogo)
+      if (item.productoId) {
+        const gastosDesc = gastosParaPrecio.length < (gastos as GastoLogistica[]).length
+          ? ` | Gastos seleccionados: ${gastosParaPrecio.length}/${(gastos as GastoLogistica[]).length}`
+          : ''
+        const tcDesc = dto.tiposCambioOverride?.length
+          ? ` | TC overrides: ${dto.tiposCambioOverride.length}`
+          : ''
+        const notasPrecio = modoDirecto
+          ? `Costo/kg: ${costoUnitPrecio.toFixed(4)} | P.U. Venta directo: ${precioSugerido.toFixed(4)}${dto.tasaIva != null ? ` | IVA: ${(Number(dto.tasaIva) * 100).toFixed(2)}%` : ''}`
+          : dto.formula
+          ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
+          : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`
 
-      // Guardar en catálogo (tipo LOGISTICA)
-      let precio = await this.precioRepo.findOne({
-        where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: Status.ACTIVE },
-      })
-      if (precio) {
-        Object.assign(precio, { precio: precioSugerido, notas: notasPrecio, transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
-      } else {
-        precio = this.precioRepo.create({
-          productoId: item.productoId, clienteId, tipo: 'LOGISTICA',
-          precio: precioSugerido, moneda: 'BASE', cantidadMin: 1, activo: true,
-          notas: notasPrecio, estado: Status.ACTIVE,
-          transaccion: Transacccion.CREAR, usuarioCreacion: usuarioModificacion,
+        let precio = await this.precioRepo.findOne({
+          where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: Status.ACTIVE },
+        })
+        if (precio) {
+          Object.assign(precio, { precio: precioSugerido, notas: notasPrecio, transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
+        } else {
+          precio = this.precioRepo.create({
+            productoId: item.productoId, clienteId, tipo: 'LOGISTICA',
+            precio: precioSugerido, moneda: 'BASE', cantidadMin: 1, activo: true,
+            notas: notasPrecio, estado: Status.ACTIVE,
+            transaccion: Transacccion.CREAR, usuarioCreacion: usuarioModificacion,
+          })
+        }
+        await this.precioRepo.save(precio)
+        preciosPropuestos.push({
+          productoId: item.productoId,
+          costoContable: item.costoTotalUnitario,
+          costoParaPrecio: costoUnitPrecio,
+          margen,
+          precioSugerido,
+          precioVentaConIva: item.precioVentaConIva ?? null,
+          utilidadTonelada: item.utilidadTonelada ?? null,
+          utilidadToneladaConIva: item.utilidadToneladaConIva ?? null,
         })
       }
-      await this.precioRepo.save(precio)
-      preciosPropuestos.push({
-        productoId: item.productoId,
-        costoContable: item.costoTotalUnitario,
-        costoParaPrecio: costoUnitPrecio,
-        margen,
-        precioSugerido,
-      })
     }
 
     await this.itemRepo.save(items)

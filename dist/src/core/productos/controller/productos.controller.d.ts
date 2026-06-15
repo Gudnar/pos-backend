@@ -10,7 +10,7 @@ export declare class ProductosController {
     private readonly preciosSvc;
     private readonly importExportSvc;
     constructor(svc: ProductosService, preciosSvc: PreciosService, importExportSvc: ImportExportService);
-    listar(req: any, subcategoriaId?: string, q?: string): Promise<{
+    listar(req: any, subcategoriaId?: string, q?: string, soloActivos?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: import("../entity/producto.entity").Producto[];

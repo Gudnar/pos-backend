@@ -4,7 +4,7 @@ import { CreateSubcategoriaProductoDto, UpdateSubcategoriaProductoDto } from '..
 export declare class SubcategoriasProductoService {
     private readonly repo;
     constructor(repo: Repository<SubcategoriaProducto>);
-    listar(clienteId: string, categoriaId?: string): Promise<SubcategoriaProducto[]>;
+    listar(clienteId: string, categoriaId?: string, soloActivos?: boolean): Promise<SubcategoriaProducto[]>;
     obtener(clienteId: string, id: string): Promise<SubcategoriaProducto>;
     crear(clienteId: string, dto: CreateSubcategoriaProductoDto, usuarioCreacion: string): Promise<SubcategoriaProducto>;
     actualizar(clienteId: string, id: string, dto: UpdateSubcategoriaProductoDto, usuarioModificacion: string): Promise<SubcategoriaProducto>;

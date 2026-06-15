@@ -13,9 +13,10 @@ export class SubcategoriasProductoService {
     private readonly repo: Repository<SubcategoriaProducto>,
   ) {}
 
-  async listar(clienteId: string, categoriaId?: string): Promise<SubcategoriaProducto[]> {
+  async listar(clienteId: string, categoriaId?: string, soloActivos = false): Promise<SubcategoriaProducto[]> {
     const where: any = { clienteId, estado: Status.ACTIVE }
     if (categoriaId) where.categoriaId = categoriaId
+    if (soloActivos) where.activo = true
     return this.repo.find({ where, order: { nombre: 'ASC' } })
   }
 

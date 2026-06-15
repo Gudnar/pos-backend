@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CerrarOrdenDto = exports.ProponerPreciosDto = exports.ComponenteFormulaDto = exports.GastoOverrideDto = exports.FormulaDto = exports.RedondeoFormulaDto = exports.PasoFormulaDto = exports.UpdateOrdenImportacionDto = exports.CreateOrdenImportacionDto = void 0;
+exports.CerrarOrdenDto = exports.PrecioVentaManualItemDto = exports.ProponerPreciosDto = exports.ComponenteFormulaDto = exports.GastoOverrideDto = exports.FormulaDto = exports.RedondeoFormulaDto = exports.PasoFormulaDto = exports.UpdateOrdenImportacionDto = exports.CreateOrdenImportacionDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CreateOrdenImportacionDto {
@@ -221,6 +221,18 @@ __decorate([
     __metadata("design:type", RedondeoFormulaDto)
 ], ProponerPreciosDto.prototype, "redondeo", void 0);
 exports.ProponerPreciosDto = ProponerPreciosDto;
+class PrecioVentaManualItemDto {
+}
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], PrecioVentaManualItemDto.prototype, "itemId", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsPositive)(),
+    __metadata("design:type", Number)
+], PrecioVentaManualItemDto.prototype, "precioVenta", void 0);
+exports.PrecioVentaManualItemDto = PrecioVentaManualItemDto;
 class CerrarOrdenDto {
 }
 __decorate([
@@ -258,5 +270,18 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CerrarOrdenDto.prototype, "sucursalId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CerrarOrdenDto.prototype, "tasaIva", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => PrecioVentaManualItemDto),
+    __metadata("design:type", Array)
+], CerrarOrdenDto.prototype, "preciosVentaManual", void 0);
 exports.CerrarOrdenDto = CerrarOrdenDto;
 //# sourceMappingURL=orden-importacion.dto.js.map

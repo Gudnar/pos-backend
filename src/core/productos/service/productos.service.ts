@@ -22,11 +22,12 @@ export class ProductosService {
     private readonly subcategoriaRepo: Repository<SubcategoriaProducto>,
   ) {}
 
-  async listar(clienteId: string, subcategoriaId?: string, q?: string): Promise<Producto[]> {
+  async listar(clienteId: string, subcategoriaId?: string, q?: string, soloActivos = false): Promise<Producto[]> {
     const qb = this.repo
       .createQueryBuilder('p')
       .where('p.cliente_id = :clienteId AND p._estado = :estado', { clienteId, estado: Status.ACTIVE })
       .orderBy('p.nombre', 'ASC')
+    if (soloActivos) qb.andWhere('p.activo = true')
     if (subcategoriaId) {
       qb.andWhere('p.subcategoria_id = :subcategoriaId', { subcategoriaId })
     }
@@ -67,7 +68,7 @@ export class ProductosService {
   }
 
   async listarParaPOS(clienteId: string, q?: string): Promise<any[]> {
-    const productos = await this.listar(clienteId, undefined, q)
+    const productos = await this.listar(clienteId, undefined, q, true)
     if (!productos.length) return []
 
     const ids = productos.map(p => p.id)

@@ -10,6 +10,7 @@ import { CalificacionBackgroundService } from './calificacion-background.service
 import { CampanaService } from '../../campana/service/campana.service'
 import { AgentToolsService } from '../../herramienta/service/agent-tools.service'
 import { BizIntelToolsService } from '../../biz-intel/service/biz-intel-tools.service'
+import { AdminGerenteService } from '../../admin-gerente/service/admin-gerente.service'
 import { WaWebhookMessage } from '../dto/whatsapp.dto'
 import { USUARIO_SISTEMA } from '../../../common/constants'
 
@@ -32,6 +33,7 @@ export class WhatsappWebhookService {
     private readonly campanaService: CampanaService,
     private readonly agentTools: AgentToolsService,
     private readonly bizIntelTools: BizIntelToolsService,
+    private readonly adminGerenteService: AdminGerenteService,
   ) {}
 
   // ── Main entry point called by controller ────────────────────
@@ -66,6 +68,27 @@ export class WhatsappWebhookService {
         this.waService.marcarLeido(rawMessage.id, config).catch(() => {})
         this.waService.mostrarTyping(rawMessage.id, config).catch(() => {})
         await this.procesarMensajeDueno(from, textoUsuario, clienteId, config)
+        return
+      }
+
+      // ── Validación de usuario administrador (Gerente vía WhatsApp) ──────────
+      const adminUser = await this.adminGerenteService.resolverAdmin(from, clienteId)
+      if (adminUser) {
+        this.logger.log(`[WA] Mensaje del Gerente ${adminUser.nombres} (${adminUser.rol})`)
+        const adminConfig = await this.waService.obtenerConfig(clienteId)
+        this.waService.marcarLeido(rawMessage.id, adminConfig).catch(() => {})
+        this.waService.mostrarTyping(rawMessage.id, adminConfig).catch(() => {})
+        const apiKeyCfg = await this.confClienteService.obtenerPorClave(clienteId, 'ANTHROPIC_API_KEY').catch(() => null)
+        const apiKey = apiKeyCfg?.valor
+        if (apiKey && !apiKey.includes('•')) {
+          const cliente = await this.clienteService.obtener(clienteId)
+          const respuesta = await this.adminGerenteService.obtenerRespuesta(
+            textoUsuario, adminUser, clienteId, apiKey, cliente?.nombre || 'la empresa',
+          )
+          if (respuesta) await this.waService.enviarTexto(from, respuesta, adminConfig)
+        } else {
+          this.logger.error('[WA-Admin] ANTHROPIC_API_KEY no configurada para este cliente')
+        }
         return
       }
 

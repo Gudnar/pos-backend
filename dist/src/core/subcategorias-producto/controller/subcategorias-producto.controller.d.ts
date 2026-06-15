@@ -3,7 +3,7 @@ import { CreateSubcategoriaProductoDto, UpdateSubcategoriaProductoDto } from '..
 export declare class SubcategoriasProductoController {
     private readonly svc;
     constructor(svc: SubcategoriasProductoService);
-    listar(req: any, categoriaId?: string): Promise<{
+    listar(req: any, categoriaId?: string, soloActivos?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: import("../entity/subcategoria-producto.entity").SubcategoriaProducto[];

@@ -7,6 +7,7 @@ export declare class Usuario extends AuditoriaEntity {
     correoElectronico?: string;
     nombres: string;
     apellidos?: string;
+    telefono?: string;
     rol: string;
     intentos: number;
     fechaBloqueo?: Date | null;

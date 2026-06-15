@@ -24,6 +24,9 @@ export class CreateUsuarioSistemaDto {
   @IsOptional() @IsArray() @IsUUID('all', { each: true })
   sucursales?: string[]
 
+  @IsOptional() @IsString() @MaxLength(30)
+  telefono?: string
+
   @IsOptional() @IsString()
   estado?: string
 }
@@ -46,6 +49,9 @@ export class UpdateUsuarioSistemaDto {
 
   @IsOptional() @IsString()
   estado?: string
+
+  @IsOptional() @IsString() @MaxLength(30)
+  telefono?: string
 
   @IsOptional() @IsString()
   nuevaContrasena?: string

@@ -16,5 +16,9 @@ export declare class ItemOrdenImportacion extends AuditoriaEntity {
     costoTotalUnitario?: number;
     margenAplicado?: number;
     precioVentaSugerido?: number;
+    precioVentaManual?: number;
+    precioVentaConIva?: number;
+    utilidadTonelada?: number;
+    utilidadToneladaConIva?: number;
     constructor(data?: Partial<ItemOrdenImportacion>);
 }

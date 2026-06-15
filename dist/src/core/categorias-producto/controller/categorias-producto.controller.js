@@ -24,8 +24,8 @@ let CategoriasProductoController = class CategoriasProductoController {
     constructor(svc) {
         this.svc = svc;
     }
-    async listar(req, q) {
-        const datos = await this.svc.listar(req.user.clienteId, q);
+    async listar(req, q, soloActivos) {
+        const datos = await this.svc.listar(req.user.clienteId, q, soloActivos === 'true');
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async obtener(req, id) {
@@ -49,8 +49,9 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('q')),
+    __param(2, (0, common_1.Query)('soloActivos')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], CategoriasProductoController.prototype, "listar", null);
 __decorate([

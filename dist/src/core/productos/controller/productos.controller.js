@@ -30,8 +30,8 @@ let ProductosController = class ProductosController {
         this.preciosSvc = preciosSvc;
         this.importExportSvc = importExportSvc;
     }
-    async listar(req, subcategoriaId, q) {
-        const datos = await this.svc.listar(req.user.clienteId, subcategoriaId, q);
+    async listar(req, subcategoriaId, q, soloActivos) {
+        const datos = await this.svc.listar(req.user.clienteId, subcategoriaId, q, soloActivos === 'true');
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async listarParaPOS(req, q) {
@@ -104,8 +104,9 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('subcategoriaId')),
     __param(2, (0, common_1.Query)('q')),
+    __param(3, (0, common_1.Query)('soloActivos')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", Promise)
 ], ProductosController.prototype, "listar", null);
 __decorate([

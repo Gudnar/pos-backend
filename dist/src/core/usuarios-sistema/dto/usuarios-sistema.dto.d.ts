@@ -6,6 +6,7 @@ export declare class CreateUsuarioSistemaDto {
     correoElectronico?: string;
     rol: string;
     sucursales?: string[];
+    telefono?: string;
     estado?: string;
 }
 export declare class UpdateUsuarioSistemaDto {
@@ -15,5 +16,6 @@ export declare class UpdateUsuarioSistemaDto {
     rol?: string;
     sucursales?: string[];
     estado?: string;
+    telefono?: string;
     nuevaContrasena?: string;
 }

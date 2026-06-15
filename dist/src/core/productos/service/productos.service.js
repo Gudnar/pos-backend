@@ -29,11 +29,13 @@ let ProductosService = class ProductosService {
         this.categoriaRepo = categoriaRepo;
         this.subcategoriaRepo = subcategoriaRepo;
     }
-    async listar(clienteId, subcategoriaId, q) {
+    async listar(clienteId, subcategoriaId, q, soloActivos = false) {
         const qb = this.repo
             .createQueryBuilder('p')
             .where('p.cliente_id = :clienteId AND p._estado = :estado', { clienteId, estado: constants_1.Status.ACTIVE })
             .orderBy('p.nombre', 'ASC');
+        if (soloActivos)
+            qb.andWhere('p.activo = true');
         if (subcategoriaId) {
             qb.andWhere('p.subcategoria_id = :subcategoriaId', { subcategoriaId });
         }
@@ -66,7 +68,7 @@ let ProductosService = class ProductosService {
         return this.repo.save(p);
     }
     async listarParaPOS(clienteId, q) {
-        const productos = await this.listar(clienteId, undefined, q);
+        const productos = await this.listar(clienteId, undefined, q, true);
         if (!productos.length)
             return [];
         const ids = productos.map(p => p.id);

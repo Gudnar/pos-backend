@@ -30,6 +30,9 @@ export class Usuario extends AuditoriaEntity {
   @Column({ name: 'apellidos', length: 150, nullable: true })
   apellidos?: string
 
+  @Column({ name: 'telefono', length: 30, nullable: true })
+  telefono?: string
+
   @Column({ name: 'rol', length: 50, default: 'USER' })
   rol: string
 

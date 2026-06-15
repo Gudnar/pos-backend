@@ -23,10 +23,12 @@ let SubcategoriasProductoService = class SubcategoriasProductoService {
     constructor(repo) {
         this.repo = repo;
     }
-    async listar(clienteId, categoriaId) {
+    async listar(clienteId, categoriaId, soloActivos = false) {
         const where = { clienteId, estado: constants_1.Status.ACTIVE };
         if (categoriaId)
             where.categoriaId = categoriaId;
+        if (soloActivos)
+            where.activo = true;
         return this.repo.find({ where, order: { nombre: 'ASC' } });
     }
     async obtener(clienteId, id) {

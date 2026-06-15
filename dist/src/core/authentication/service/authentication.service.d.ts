@@ -22,6 +22,7 @@ export declare class AuthenticationService extends BaseService {
             correoElectronico?: string | undefined;
             nombres?: string | undefined;
             apellidos?: string | undefined;
+            telefono?: string | undefined;
             rol?: string | undefined;
             intentos?: number | undefined;
             fechaBloqueo?: Date | null | undefined;

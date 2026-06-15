@@ -74,6 +74,10 @@ __decorate([
     __metadata("design:type", String)
 ], Usuario.prototype, "apellidos", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'telefono', length: 30, nullable: true }),
+    __metadata("design:type", String)
+], Usuario.prototype, "telefono", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'rol', length: 50, default: 'USER' }),
     __metadata("design:type", String)
 ], Usuario.prototype, "rol", void 0);

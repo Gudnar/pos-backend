@@ -10,7 +10,7 @@ export declare class ProductosService {
     private readonly categoriaRepo;
     private readonly subcategoriaRepo;
     constructor(repo: Repository<Producto>, precioRepo: Repository<PrecioProducto>, categoriaRepo: Repository<CategoriaProducto>, subcategoriaRepo: Repository<SubcategoriaProducto>);
-    listar(clienteId: string, subcategoriaId?: string, q?: string): Promise<Producto[]>;
+    listar(clienteId: string, subcategoriaId?: string, q?: string, soloActivos?: boolean): Promise<Producto[]>;
     obtener(clienteId: string, id: string): Promise<Producto>;
     crear(clienteId: string, dto: CreateProductoDto, usuarioCreacion: string): Promise<Producto>;
     actualizar(clienteId: string, id: string, dto: UpdateProductoDto, usuarioModificacion: string): Promise<Producto>;

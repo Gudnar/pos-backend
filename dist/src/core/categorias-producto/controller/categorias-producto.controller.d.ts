@@ -3,7 +3,7 @@ import { CreateCategoriaProductoDto, UpdateCategoriaProductoDto } from '../dto/c
 export declare class CategoriasProductoController {
     private readonly svc;
     constructor(svc: CategoriasProductoService);
-    listar(req: any, q?: string): Promise<{
+    listar(req: any, q?: string, soloActivos?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: import("../entity/categoria-producto.entity").CategoriaProducto[];

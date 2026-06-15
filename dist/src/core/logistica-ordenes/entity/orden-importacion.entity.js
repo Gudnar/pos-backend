@@ -87,6 +87,10 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'unidades_totales', type: 'int', nullable: true }),
     __metadata("design:type", Number)
 ], OrdenImportacion.prototype, "unidadesTotales", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tasa_iva', type: 'decimal', precision: 5, scale: 4, nullable: true }),
+    __metadata("design:type", Number)
+], OrdenImportacion.prototype, "tasaIva", void 0);
 OrdenImportacion = __decorate([
     (0, typeorm_1.Entity)({ name: 'logistica_orden_importacion', schema: process.env.DB_SCHEMA || 'public' }),
     __metadata("design:paramtypes", [Object])

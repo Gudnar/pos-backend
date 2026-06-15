@@ -24,8 +24,8 @@ let SubcategoriasProductoController = class SubcategoriasProductoController {
     constructor(svc) {
         this.svc = svc;
     }
-    async listar(req, categoriaId) {
-        const datos = await this.svc.listar(req.user.clienteId, categoriaId);
+    async listar(req, categoriaId, soloActivos) {
+        const datos = await this.svc.listar(req.user.clienteId, categoriaId, soloActivos === 'true');
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async obtener(req, id) {
@@ -49,8 +49,9 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('categoriaId')),
+    __param(2, (0, common_1.Query)('soloActivos')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], SubcategoriasProductoController.prototype, "listar", null);
 __decorate([
