@@ -29,7 +29,7 @@ export class WhatsappService {
       accessToken:   configs[0]?.valor || '',
       phoneNumberId: configs[1]?.valor || '',
       wabaId:        configs[2]?.valor || '',
-      verifyToken:   configs[3]?.valor || 'ide_ia_verify_token',
+      verifyToken:   configs[3]?.valor || '',
       agenteId:      configs[4]?.valor || '',
       enabled:       configs[5]?.valor === 'true',
     }
