@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsEmail, IsBoolean, MaxLength } from 'class-validator'
+import { IsString, IsNotEmpty, IsOptional, IsEmail, IsBoolean, MaxLength, ValidateIf } from 'class-validator'
 
 export class CreateRepresentanteDto {
   @IsString() @IsNotEmpty() @MaxLength(200)
@@ -10,7 +10,7 @@ export class CreateRepresentanteDto {
   @IsOptional() @IsString() @MaxLength(30)
   telefono?: string
 
-  @IsOptional() @IsEmail() @MaxLength(150)
+  @IsOptional() @ValidateIf(o => !!o.email) @IsEmail() @MaxLength(150)
   email?: string
 
   @IsOptional() @IsString() @MaxLength(10)
@@ -36,7 +36,7 @@ export class UpdateRepresentanteDto {
   @IsOptional() @IsString() @MaxLength(30)
   telefono?: string
 
-  @IsOptional() @IsEmail() @MaxLength(150)
+  @IsOptional() @ValidateIf(o => !!o.email) @IsEmail() @MaxLength(150)
   email?: string
 
   @IsOptional() @IsString() @MaxLength(10)

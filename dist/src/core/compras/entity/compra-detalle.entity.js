@@ -56,6 +56,14 @@ __decorate([
     __metadata("design:type", Number)
 ], CompraDetalle.prototype, "subtotal", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'total_compra', type: 'decimal', precision: 14, scale: 4, nullable: true }),
+    __metadata("design:type", Number)
+], CompraDetalle.prototype, "totalCompra", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'moneda', length: 10, nullable: true, default: 'BOB' }),
+    __metadata("design:type", String)
+], CompraDetalle.prototype, "moneda", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'nro_lote', length: 100, nullable: true }),
     __metadata("design:type", String)
 ], CompraDetalle.prototype, "nroLote", void 0);

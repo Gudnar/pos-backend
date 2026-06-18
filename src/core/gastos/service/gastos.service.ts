@@ -12,10 +12,11 @@ export class GastosService {
     private readonly gastoRepo: Repository<Gasto>,
   ) {}
 
-  async listar(clienteId: string, tipo?: string, categoria?: string): Promise<Gasto[]> {
+  async listar(clienteId: string, tipo?: string, categoria?: string, fecha?: string): Promise<Gasto[]> {
     const where: any = { clienteId, estado: Status.ACTIVE }
     if (tipo) where.tipo = tipo
     if (categoria) where.categoria = categoria
+    if (fecha) where.fecha = fecha
     return this.gastoRepo.find({ where, order: { fechaCreacion: 'DESC' }, take: 500 })
   }
 

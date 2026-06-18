@@ -33,7 +33,7 @@ let FacebookService = FacebookService_1 = class FacebookService {
         return {
             pageAccessToken: configs[0]?.valor || '',
             pageId: configs[1]?.valor || '',
-            verifyToken: configs[2]?.valor || 'fb_verify_token',
+            verifyToken: configs[2]?.valor || '',
             messengerAgenteId: configs[3]?.valor || '',
             commentsAgenteId: configs[4]?.valor || '',
             enabled: configs[5]?.valor === 'true',

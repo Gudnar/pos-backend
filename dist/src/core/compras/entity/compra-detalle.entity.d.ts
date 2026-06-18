@@ -9,6 +9,8 @@ export declare class CompraDetalle extends AuditoriaEntity {
     precioUnitario: number;
     descuento: number;
     subtotal: number;
+    totalCompra?: number;
+    moneda?: string;
     nroLote?: string;
     fechaVencimiento?: string;
     loteId?: string;

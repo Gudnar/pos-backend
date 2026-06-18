@@ -29,6 +29,8 @@ export class ComprasService {
     private readonly logRepo: Repository<CompraLog>,
     @InjectRepository(Lote)
     private readonly loteRepo: Repository<Lote>,
+    @InjectRepository(MovimientoStock)
+    private readonly movimientoRepo: Repository<MovimientoStock>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -117,8 +119,10 @@ export class ComprasService {
             unidadId: d.unidadId,
             cantidad: d.cantidad,
             precioUnitario: d.precioUnitario,
+            totalCompra: d.totalCompra ?? null,
             descuento: d.descuento || 0,
             subtotal: sub,
+            moneda: d.moneda || 'BOB',
             nroLote: d.nroLote || null,
             fechaVencimiento: d.fechaVencimiento || null,
             estado: Status.ACTIVE,
@@ -199,14 +203,16 @@ export class ComprasService {
         if (Number(d.precioUnitario) !== Number(actual.precioUnitario)) cambios.push(`Precio: ${actual.precioUnitario} → ${d.precioUnitario}`)
         await this.detalleRepo.update(d.id, {
           productoId: d.productoId, unidadId: d.unidadId,
-          cantidad: d.cantidad, precioUnitario: d.precioUnitario, descuento: d.descuento || 0, subtotal: sub,
+          cantidad: d.cantidad, precioUnitario: d.precioUnitario, totalCompra: d.totalCompra ?? null,
+          descuento: d.descuento || 0, subtotal: sub,
           nroLote: d.nroLote || null, fechaVencimiento: d.fechaVencimiento || null,
           transaccion: Transacccion.ACTUALIZAR, usuarioModificacion: usuarioId,
         } as any)
       } else {
         await this.detalleRepo.save(this.detalleRepo.create({
           clienteId, compraId: id, productoId: d.productoId, unidadId: d.unidadId,
-          cantidad: d.cantidad, precioUnitario: d.precioUnitario, descuento: d.descuento || 0, subtotal: sub,
+          cantidad: d.cantidad, precioUnitario: d.precioUnitario, totalCompra: d.totalCompra ?? null,
+          descuento: d.descuento || 0, subtotal: sub,
           nroLote: d.nroLote || null, fechaVencimiento: d.fechaVencimiento || null,
           estado: Status.ACTIVE, transaccion: Transacccion.CREAR, usuarioCreacion: usuarioId,
         } as any))
@@ -296,6 +302,7 @@ export class ComprasService {
           unidadId: d.unidadId,
           cantidad: d.cantidad,
           precioUnitario: d.precioUnitario,
+          totalCompra: d.totalCompra ?? null,
           descuento: d.descuento || 0,
           subtotal: sub,
           nroLote: d.nroLote,
@@ -328,6 +335,7 @@ export class ComprasService {
           unidadId: d.unidadId,
           cantidad: d.cantidad,
           precioUnitario: d.precioUnitario,
+          totalCompra: d.totalCompra ?? null,
           descuento: d.descuento || 0,
           subtotal: sub,
           nroLote: d.nroLote || null,
@@ -374,6 +382,10 @@ export class ComprasService {
           transaccion: Transacccion.ELIMINAR,
           usuarioModificacion: usuarioId,
         } as any)
+        await this.movimientoRepo.update(
+          { loteId: det.loteId, clienteId },
+          { estado: Status.ELIMINATE, transaccion: Transacccion.ELIMINAR, usuarioModificacion: usuarioId } as any,
+        )
       }
       await this.detalleRepo.update(det.id, {
         estado: Status.ELIMINATE,

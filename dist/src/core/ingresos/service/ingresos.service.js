@@ -22,12 +22,14 @@ let IngresosService = class IngresosService {
     constructor(ingresoRepo) {
         this.ingresoRepo = ingresoRepo;
     }
-    async listar(clienteId, tipo, categoria) {
+    async listar(clienteId, tipo, categoria, fecha) {
         const where = { clienteId, estado: constants_1.Status.ACTIVE };
         if (tipo)
             where.tipo = tipo;
         if (categoria)
             where.categoria = categoria;
+        if (fecha)
+            where.fecha = fecha;
         return this.ingresoRepo.find({ where, order: { fechaCreacion: 'DESC' }, take: 500 });
     }
     async listarAdelantos(clienteId, contactoClienteId) {

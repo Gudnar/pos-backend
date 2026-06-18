@@ -21,7 +21,13 @@ export class DetalleCompraDto {
   precioUnitario: number
 
   @IsOptional() @IsNumber() @Min(0)
+  totalCompra?: number
+
+  @IsOptional() @IsNumber() @Min(0)
   descuento?: number
+
+  @IsOptional() @IsString()
+  moneda?: string
 
   @IsOptional() @IsString()
   nroLote?: string

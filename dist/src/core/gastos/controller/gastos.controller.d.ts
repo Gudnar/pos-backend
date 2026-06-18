@@ -3,7 +3,7 @@ import { CreateGastoDto, UpdateGastoDto } from '../dto/gasto.dto';
 export declare class GastosController {
     private readonly svc;
     constructor(svc: GastosService);
-    listar(req: any, tipo?: string, categoria?: string): Promise<{
+    listar(req: any, tipo?: string, categoria?: string, fecha?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: import("../entity/gasto.entity").Gasto[];

@@ -23,8 +23,8 @@ let IngresosController = class IngresosController {
     constructor(svc) {
         this.svc = svc;
     }
-    async listar(req, tipo, categoria) {
-        const datos = await this.svc.listar(req.user.clienteId, tipo, categoria);
+    async listar(req, tipo, categoria, fecha) {
+        const datos = await this.svc.listar(req.user.clienteId, tipo, categoria, fecha);
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async listarAdelantos(req, contactoClienteId) {
@@ -53,8 +53,9 @@ __decorate([
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('tipo')),
     __param(2, (0, common_1.Query)('categoria')),
+    __param(3, (0, common_1.Query)('fecha')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", Promise)
 ], IngresosController.prototype, "listar", null);
 __decorate([

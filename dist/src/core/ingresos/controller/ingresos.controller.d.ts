@@ -3,7 +3,7 @@ import { CreateIngresoDto, UpdateIngresoDto } from '../dto/ingreso.dto';
 export declare class IngresosController {
     private readonly svc;
     constructor(svc: IngresosService);
-    listar(req: any, tipo?: string, categoria?: string): Promise<{
+    listar(req: any, tipo?: string, categoria?: string, fecha?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: import("../entity/ingreso.entity").Ingreso[];

@@ -22,12 +22,14 @@ let GastosService = class GastosService {
     constructor(gastoRepo) {
         this.gastoRepo = gastoRepo;
     }
-    async listar(clienteId, tipo, categoria) {
+    async listar(clienteId, tipo, categoria, fecha) {
         const where = { clienteId, estado: constants_1.Status.ACTIVE };
         if (tipo)
             where.tipo = tipo;
         if (categoria)
             where.categoria = categoria;
+        if (fecha)
+            where.fecha = fecha;
         return this.gastoRepo.find({ where, order: { fechaCreacion: 'DESC' }, take: 500 });
     }
     async obtener(clienteId, id) {

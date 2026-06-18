@@ -4,7 +4,9 @@ export declare class DetalleCompraDto {
     unidadId?: string;
     cantidad: number;
     precioUnitario: number;
+    totalCompra?: number;
     descuento?: number;
+    moneda?: string;
     nroLote?: string;
     fechaVencimiento?: string;
 }

@@ -49,12 +49,28 @@ let LotesService = class LotesService {
             .where('p.id IN (:...ids) AND p._estado = :est', { ids: productoIds, est: constants_1.Status.ACTIVE })
             .getMany();
         const prodMap = new Map(productos.map(p => [p.id, p]));
+        const subcategoriaIds = [...new Set(productos.map(p => p.subcategoriaId).filter(Boolean))];
+        let subMap = new Map();
+        let catMap = new Map();
+        if (subcategoriaIds.length) {
+            const schema = process.env.DB_SCHEMA || 'public';
+            const subs = await this.productoRepo.manager.query(`SELECT id, nombre, categoria_id AS "categoriaId" FROM ${schema}.subcategoria_producto WHERE id = ANY($1)`, [subcategoriaIds]);
+            subMap = new Map(subs.map(s => [s.id, { nombre: s.nombre, categoriaId: s.categoriaId }]));
+            const categoriaIds = [...new Set(subs.map(s => s.categoriaId).filter(Boolean))];
+            if (categoriaIds.length) {
+                const cats = await this.productoRepo.manager.query(`SELECT id, nombre FROM ${schema}.categoria_producto WHERE id = ANY($1)`, [categoriaIds]);
+                catMap = new Map(cats.map(c => [c.id, c.nombre]));
+            }
+        }
         return rows.map(r => {
             const prod = prodMap.get(r.productoId);
+            const sub = subMap.get(prod?.subcategoriaId);
             return {
                 productoId: r.productoId,
                 sucursalId: r.sucursalId,
                 nombre: prod?.nombre || '',
+                categoriaNombre: sub ? (catMap.get(sub.categoriaId) || '') : '',
+                subcategoriaNombre: sub?.nombre || '',
                 codigo: prod?.codigoTienda || prod?.codigoBarras || '',
                 requiereLote: prod?.requiereLote || false,
                 metodoPicking: prod?.metodoPicking || 'FEFO',
@@ -218,6 +234,7 @@ let LotesService = class LotesService {
         const sql = `
       SELECT pp.id, pp.tipo, pp.precio, pp.moneda, pp.fecha_vigencia AS "fechaVigencia",
              pp.fecha_fin AS "fechaFin", pp.activo, pp._fecha_creacion AS "fechaCreacion",
+             pp.producto_id AS "productoId",
              p.nombre AS "productoNombre", p.codigo_tienda AS "codigo"
       FROM ${schema}.precio_producto pp
       LEFT JOIN ${schema}.producto p ON p.id = pp.producto_id
@@ -243,6 +260,7 @@ let LotesService = class LotesService {
             .select([
             'l.id AS "loteId"', 'l.nro_lote AS "nroLote"', 'l.fecha_vencimiento AS "fechaVencimiento"',
             'l.cantidad_actual AS "cantidadActual"', 'l.sucursal_id AS "sucursalId"',
+            'l.producto_id AS "productoId"',
             'p.nombre AS "productoNombre"',
             `(l.fecha_vencimiento::date - CURRENT_DATE) AS "diasRestantes"`,
         ])

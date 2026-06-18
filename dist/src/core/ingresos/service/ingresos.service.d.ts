@@ -4,7 +4,7 @@ import { CreateIngresoDto, UpdateIngresoDto } from '../dto/ingreso.dto';
 export declare class IngresosService {
     private readonly ingresoRepo;
     constructor(ingresoRepo: Repository<Ingreso>);
-    listar(clienteId: string, tipo?: string, categoria?: string): Promise<Ingreso[]>;
+    listar(clienteId: string, tipo?: string, categoria?: string, fecha?: string): Promise<Ingreso[]>;
     listarAdelantos(clienteId: string, contactoClienteId?: string): Promise<Ingreso[]>;
     obtener(clienteId: string, id: string): Promise<Ingreso>;
     crear(clienteId: string, dto: CreateIngresoDto, usuarioId: string): Promise<Ingreso>;

@@ -27,8 +27,9 @@ export class GastosController {
     @Req() req: any,
     @Query('tipo') tipo?: string,
     @Query('categoria') categoria?: string,
+    @Query('fecha') fecha?: string,
   ) {
-    const datos = await this.svc.listar(req.user.clienteId, tipo, categoria)
+    const datos = await this.svc.listar(req.user.clienteId, tipo, categoria, fecha)
     return { finalizado: true, mensaje: 'OK', datos }
   }
 

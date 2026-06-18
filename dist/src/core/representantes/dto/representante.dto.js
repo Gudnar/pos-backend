@@ -33,6 +33,7 @@ __decorate([
 ], CreateRepresentanteDto.prototype, "telefono", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)(o => !!o.email),
     (0, class_validator_1.IsEmail)(),
     (0, class_validator_1.MaxLength)(150),
     __metadata("design:type", String)
@@ -81,6 +82,7 @@ __decorate([
 ], UpdateRepresentanteDto.prototype, "telefono", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)(o => !!o.email),
     (0, class_validator_1.IsEmail)(),
     (0, class_validator_1.MaxLength)(150),
     __metadata("design:type", String)

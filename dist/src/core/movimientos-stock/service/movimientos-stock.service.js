@@ -174,6 +174,7 @@ let MovimientosStockService = class MovimientosStockService {
       SELECT m.id, m._fecha_creacion AS fecha, m.tipo, m.cantidad, m.cantidad_anterior AS "cantidadAnterior",
              m.cantidad_posterior AS "cantidadPosterior", m.motivo, m.referencia_documento AS "referenciaDocumento",
              m.tipo_documento AS "tipoDocumento", m.lote_id AS "loteId",
+             m.producto_id AS "productoId",
              p.nombre AS "productoNombre", p.codigo_tienda AS "codigo",
              l.nro_lote AS "nroLote", l.lote_interno AS "loteInterno"
       FROM ${schema}.movimiento_stock m

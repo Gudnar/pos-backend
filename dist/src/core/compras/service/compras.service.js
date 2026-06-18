@@ -49,12 +49,13 @@ const lote_entity_1 = require("../../lotes/entity/lote.entity");
 const movimiento_stock_entity_1 = require("../../movimientos-stock/entity/movimiento-stock.entity");
 const constants_1 = require("../../../common/constants");
 let ComprasService = class ComprasService {
-    constructor(compraRepo, detalleRepo, pagoRepo, logRepo, loteRepo, dataSource) {
+    constructor(compraRepo, detalleRepo, pagoRepo, logRepo, loteRepo, movimientoRepo, dataSource) {
         this.compraRepo = compraRepo;
         this.detalleRepo = detalleRepo;
         this.pagoRepo = pagoRepo;
         this.logRepo = logRepo;
         this.loteRepo = loteRepo;
+        this.movimientoRepo = movimientoRepo;
         this.dataSource = dataSource;
     }
     async listar(clienteId, filtros = {}) {
@@ -129,8 +130,10 @@ let ComprasService = class ComprasService {
                     unidadId: d.unidadId,
                     cantidad: d.cantidad,
                     precioUnitario: d.precioUnitario,
+                    totalCompra: d.totalCompra ?? null,
                     descuento: d.descuento || 0,
                     subtotal: sub,
+                    moneda: d.moneda || 'BOB',
                     nroLote: d.nroLote || null,
                     fechaVencimiento: d.fechaVencimiento || null,
                     estado: constants_1.Status.ACTIVE,
@@ -207,7 +210,8 @@ let ComprasService = class ComprasService {
                     cambios.push(`Precio: ${actual.precioUnitario} → ${d.precioUnitario}`);
                 await this.detalleRepo.update(d.id, {
                     productoId: d.productoId, unidadId: d.unidadId,
-                    cantidad: d.cantidad, precioUnitario: d.precioUnitario, descuento: d.descuento || 0, subtotal: sub,
+                    cantidad: d.cantidad, precioUnitario: d.precioUnitario, totalCompra: d.totalCompra ?? null,
+                    descuento: d.descuento || 0, subtotal: sub,
                     nroLote: d.nroLote || null, fechaVencimiento: d.fechaVencimiento || null,
                     transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion: usuarioId,
                 });
@@ -215,7 +219,8 @@ let ComprasService = class ComprasService {
             else {
                 await this.detalleRepo.save(this.detalleRepo.create({
                     clienteId, compraId: id, productoId: d.productoId, unidadId: d.unidadId,
-                    cantidad: d.cantidad, precioUnitario: d.precioUnitario, descuento: d.descuento || 0, subtotal: sub,
+                    cantidad: d.cantidad, precioUnitario: d.precioUnitario, totalCompra: d.totalCompra ?? null,
+                    descuento: d.descuento || 0, subtotal: sub,
                     nroLote: d.nroLote || null, fechaVencimiento: d.fechaVencimiento || null,
                     estado: constants_1.Status.ACTIVE, transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioId,
                 }));
@@ -290,6 +295,7 @@ let ComprasService = class ComprasService {
                     unidadId: d.unidadId,
                     cantidad: d.cantidad,
                     precioUnitario: d.precioUnitario,
+                    totalCompra: d.totalCompra ?? null,
                     descuento: d.descuento || 0,
                     subtotal: sub,
                     nroLote: d.nroLote,
@@ -321,6 +327,7 @@ let ComprasService = class ComprasService {
                     unidadId: d.unidadId,
                     cantidad: d.cantidad,
                     precioUnitario: d.precioUnitario,
+                    totalCompra: d.totalCompra ?? null,
                     descuento: d.descuento || 0,
                     subtotal: sub,
                     nroLote: d.nroLote || null,
@@ -359,6 +366,7 @@ let ComprasService = class ComprasService {
                     transaccion: constants_1.Transacccion.ELIMINAR,
                     usuarioModificacion: usuarioId,
                 });
+                await this.movimientoRepo.update({ loteId: det.loteId, clienteId }, { estado: constants_1.Status.ELIMINATE, transaccion: constants_1.Transacccion.ELIMINAR, usuarioModificacion: usuarioId });
             }
             await this.detalleRepo.update(det.id, {
                 estado: constants_1.Status.ELIMINATE,
@@ -905,7 +913,9 @@ ComprasService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(pago_proveedor_entity_1.PagoProveedor)),
     __param(3, (0, typeorm_1.InjectRepository)(compra_log_entity_1.CompraLog)),
     __param(4, (0, typeorm_1.InjectRepository)(lote_entity_1.Lote)),
+    __param(5, (0, typeorm_1.InjectRepository)(movimiento_stock_entity_1.MovimientoStock)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

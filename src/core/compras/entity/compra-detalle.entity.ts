@@ -30,6 +30,12 @@ export class CompraDetalle extends AuditoriaEntity {
   @Column({ name: 'subtotal', type: 'decimal', precision: 14, scale: 2, default: 0 })
   subtotal: number
 
+  @Column({ name: 'total_compra', type: 'decimal', precision: 14, scale: 4, nullable: true })
+  totalCompra?: number
+
+  @Column({ name: 'moneda', length: 10, nullable: true, default: 'BOB' })
+  moneda?: string
+
   @Column({ name: 'nro_lote', length: 100, nullable: true })
   nroLote?: string
 

@@ -12,10 +12,11 @@ export class IngresosService {
     private readonly ingresoRepo: Repository<Ingreso>,
   ) {}
 
-  async listar(clienteId: string, tipo?: string, categoria?: string): Promise<Ingreso[]> {
+  async listar(clienteId: string, tipo?: string, categoria?: string, fecha?: string): Promise<Ingreso[]> {
     const where: any = { clienteId, estado: Status.ACTIVE }
     if (tipo) where.tipo = tipo
     if (categoria) where.categoria = categoria
+    if (fecha) where.fecha = fecha
     return this.ingresoRepo.find({ where, order: { fechaCreacion: 'DESC' }, take: 500 })
   }
 

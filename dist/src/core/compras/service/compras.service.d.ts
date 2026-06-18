@@ -5,6 +5,7 @@ import { CompraDetalle } from '../entity/compra-detalle.entity';
 import { PagoProveedor } from '../entity/pago-proveedor.entity';
 import { CompraLog } from '../entity/compra-log.entity';
 import { Lote } from '../../lotes/entity/lote.entity';
+import { MovimientoStock } from '../../movimientos-stock/entity/movimiento-stock.entity';
 import { CreateCompraDto, UpdateCompraDto, UpdateIngresoDto, MarcarPendienteDto, FinalizarCompraDto, EditarOrdenDto, CreatePagoProveedorDto } from '../dto/compra.dto';
 export declare class ComprasService {
     private readonly compraRepo;
@@ -12,8 +13,9 @@ export declare class ComprasService {
     private readonly pagoRepo;
     private readonly logRepo;
     private readonly loteRepo;
+    private readonly movimientoRepo;
     private readonly dataSource;
-    constructor(compraRepo: Repository<Compra>, detalleRepo: Repository<CompraDetalle>, pagoRepo: Repository<PagoProveedor>, logRepo: Repository<CompraLog>, loteRepo: Repository<Lote>, dataSource: DataSource);
+    constructor(compraRepo: Repository<Compra>, detalleRepo: Repository<CompraDetalle>, pagoRepo: Repository<PagoProveedor>, logRepo: Repository<CompraLog>, loteRepo: Repository<Lote>, movimientoRepo: Repository<MovimientoStock>, dataSource: DataSource);
     listar(clienteId: string, filtros?: {
         tipo?: string;
         estado?: string;
