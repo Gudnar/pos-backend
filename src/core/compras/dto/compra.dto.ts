@@ -1,6 +1,6 @@
 import {
   IsString, IsNotEmpty, IsOptional, IsIn, IsUUID, IsNumber, IsArray,
-  ValidateNested, Min, IsDateString,
+  ValidateNested, Min, IsDateString, IsPositive,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -48,6 +48,12 @@ export class CreateCompraDto {
 
   @IsDateString()
   fecha: string
+
+  @IsOptional() @IsString()
+  moneda?: string
+
+  @IsOptional() @IsNumber() @IsPositive()
+  tipoCambio?: number
 
   @IsOptional() @IsString()
   nroFactura?: string
@@ -147,6 +153,12 @@ export class EditarOrdenDto {
   fecha?: string
 
   @IsOptional() @IsString()
+  moneda?: string
+
+  @IsOptional() @IsNumber() @IsPositive()
+  tipoCambio?: number
+
+  @IsOptional() @IsString()
   nroFactura?: string
 
   @IsOptional() @IsDateString()
@@ -192,9 +204,18 @@ export class CreatePagoProveedorDto {
   @IsIn(['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'QR', 'TARJETA'])
   metodoPago: string
 
+  @IsOptional() @IsUUID()
+  monedaId?: string
+
+  @IsOptional() @IsNumber() @Min(0.000001)
+  tipoCambio?: number
+
   @IsOptional() @IsString()
   referencia?: string
 
   @IsOptional() @IsString()
   notas?: string
+
+  @IsOptional() @IsUUID()
+  fuenteId?: string
 }

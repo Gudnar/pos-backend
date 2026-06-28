@@ -15,6 +15,8 @@ import {
   MarcarPendienteDto, FinalizarCompraDto, EditarOrdenDto,
   CreatePagoProveedorDto,
 } from '../dto/compra.dto'
+import { MovimientosFuenteService } from '../../fuentes/service/movimientos-fuente.service'
+import { TipoMovimiento as TipoMovFuente, CategoriaMovimiento } from '../../fuentes/entity/movimiento-fuente.entity'
 
 @Injectable()
 export class ComprasService {
@@ -32,6 +34,7 @@ export class ComprasService {
     @InjectRepository(MovimientoStock)
     private readonly movimientoRepo: Repository<MovimientoStock>,
     private readonly dataSource: DataSource,
+    private readonly movimientosFuenteService: MovimientosFuenteService,
   ) {}
 
   // ── Listar ──────────────────────────────────────────────────────────────────
@@ -65,9 +68,18 @@ export class ComprasService {
     const detalles = await this.detalleRepo.find({
       where: { compraId: id, clienteId, estado: Status.ACTIVE },
     })
-    const pagos = await this.pagoRepo.find({
-      where: { compraId: id, clienteId, estado: Status.ACTIVE },
-    })
+    const schema = process.env.DB_SCHEMA || 'public'
+    const pagos = await this.dataSource.query(
+      `SELECT p.*,
+              f.nombre AS "fuenteNombre", f.tipo AS "fuenteTipo",
+              m.codigo AS "monedaCodigo", m.simbolo AS "monedaSimbolo", m.nombre AS "monedaNombre"
+       FROM "${schema}"."pago_proveedor" p
+       LEFT JOIN "${schema}"."fuente" f ON f.id = p.fuente_id
+       LEFT JOIN "${schema}"."logistica_moneda" m ON m.id = p.moneda_id
+       WHERE p.compra_id = $1 AND p.cliente_id = $2 AND p._estado = $3
+       ORDER BY p.fecha ASC`,
+      [id, clienteId, Status.ACTIVE],
+    )
     return { ...compra, detalles, pagos }
   }
 
@@ -85,6 +97,8 @@ export class ComprasService {
     await qr.startTransaction()
 
     try {
+      const monedaCompra = dto.moneda || dto.detalles[0]?.moneda || 'BOB'
+      const tcCompra = Number(dto.tipoCambio || 1)
       const compra = await qr.manager.save(Compra, {
         clienteId,
         sucursalId: dto.sucursalId,
@@ -99,6 +113,8 @@ export class ComprasService {
         fechaEstimadaLlegada: dto.fechaEstimadaLlegada || null,
         nroGuiaRemision: dto.nroGuiaRemision || null,
         transportista: dto.transportista || null,
+        moneda: monedaCompra,
+        tipoCambio: tcCompra,
         subtotal,
         descuento: 0,
         total: subtotal,
@@ -169,6 +185,8 @@ export class ComprasService {
     if (dto.transportista !== undefined && dto.transportista !== compra.transportista) cambios.push(`Transportista: "${dto.transportista}"`)
     if (dto.fechaEstimadaLlegada !== undefined && dto.fechaEstimadaLlegada !== compra.fechaEstimadaLlegada) cambios.push(`Llegada estimada: ${dto.fechaEstimadaLlegada || '—'}`)
 
+    const nuevaMoneda = dto.moneda ?? compra.moneda ?? 'BOB'
+    const nuevoTc = dto.tipoCambio != null ? Number(dto.tipoCambio) : Number(compra.tipoCambio || 1)
     Object.assign(compra, {
       proveedorId: dto.proveedorId ?? compra.proveedorId,
       sucursalId: dto.sucursalId ?? compra.sucursalId,
@@ -179,6 +197,8 @@ export class ComprasService {
       nroGuiaRemision: dto.nroGuiaRemision !== undefined ? dto.nroGuiaRemision || null : compra.nroGuiaRemision,
       transportista: dto.transportista !== undefined ? dto.transportista || null : compra.transportista,
       observaciones: dto.observaciones !== undefined ? dto.observaciones : compra.observaciones,
+      moneda: nuevaMoneda,
+      tipoCambio: nuevoTc,
       transaccion: Transacccion.ACTUALIZAR,
       usuarioModificacion: usuarioId,
     })
@@ -835,16 +855,25 @@ export class ComprasService {
     let sql = `
       SELECT
         p.id, p.fecha, p.monto,
+        p.monto_en_bs    AS "montoEnBs",
+        p.tipo_cambio    AS "tipoCambio",
         p.metodo_pago    AS "metodoPago",
         p.referencia,    p.notas,
         p.proveedor_id   AS "proveedorId",
         p.compra_id      AS "compraId",
+        p.fuente_id      AS "fuenteId",
+        f.nombre         AS "fuenteNombre",
+        f.tipo           AS "fuenteTipo",
+        m.codigo         AS "monedaCodigo",
+        m.simbolo        AS "monedaSimbolo",
         c.nro_compra     AS "nroCompra",
         c.nro_factura    AS "nroFactura",
         c.tipo_compra    AS "tipoCompra",
         c.estado_compra  AS "estadoCompra"
       FROM "${schema}"."pago_proveedor" p
       JOIN "${schema}"."compra" c ON c.id = p.compra_id
+      LEFT JOIN "${schema}"."fuente" f ON f.id = p.fuente_id
+      LEFT JOIN "${schema}"."logistica_moneda" m ON m.id = p.moneda_id
       WHERE p.cliente_id = $1 AND p._estado = $2
     `
     let idx = 3
@@ -865,9 +894,34 @@ export class ComprasService {
     const compra = await this.compraRepo.findOne({ where: { id: compraId, clienteId, estado: Status.ACTIVE } })
     if (!compra) throw new NotFoundException('Compra no encontrada')
 
-    const saldo = Number(compra.total) - Number(compra.montoPagado)
-    if (dto.monto > saldo + 0.001) {
-      throw new BadRequestException(`El monto (${dto.monto}) supera el saldo pendiente (${saldo.toFixed(2)})`)
+    const tc = Number(dto.tipoCambio || 1)
+    const montoEnBs = Number(dto.monto) * tc
+
+    const compraMoneda = (compra.moneda || 'BOB').toUpperCase()
+    const esDivisa = !['BS', 'BOB', 'BOL'].includes(compraMoneda)
+
+    if (esDivisa && dto.monedaId) {
+      // Compra en divisa, pago en esa misma divisa → comparar en unidades de la divisa
+      const pagosPrevios = await this.pagoRepo.find({ where: { compraId, clienteId, estado: Status.ACTIVE } })
+      const pagadoEnDivisa = pagosPrevios
+        .filter(p => p.monedaId)
+        .reduce((acc, p) => acc + Number(p.monto), 0)
+        + pagosPrevios
+          .filter(p => !p.monedaId)
+          .reduce((acc, p) => acc + Number(p.montoEnBs) / Number(compra.tipoCambio || 1), 0)
+      const saldoEnDivisa = Number(compra.total) - pagadoEnDivisa
+      if (Number(dto.monto) > saldoEnDivisa + 0.001) {
+        throw new BadRequestException(
+          `El monto (${dto.monto} ${compra.moneda}) supera el saldo pendiente (${saldoEnDivisa.toFixed(4)} ${compra.moneda})`
+        )
+      }
+    } else {
+      // Pago en Bs → comparar en Bs usando el TC de la compra
+      const totalEnBs = Number(compra.total) * Number(compra.tipoCambio || 1)
+      const saldo = totalEnBs - Number(compra.montoPagado)
+      if (montoEnBs > saldo + 0.01) {
+        throw new BadRequestException(`El monto en Bs (${montoEnBs.toFixed(2)}) supera el saldo pendiente (${saldo.toFixed(2)})`)
+      }
     }
 
     const pago = await this.pagoRepo.save(
@@ -878,17 +932,39 @@ export class ComprasService {
         fecha: dto.fecha,
         monto: dto.monto,
         metodoPago: dto.metodoPago,
+        monedaId: dto.monedaId || undefined,
+        tipoCambio: tc,
+        montoEnBs,
         referencia: dto.referencia,
         notas: dto.notas,
+        fuenteId: dto.fuenteId || undefined,
         estado: Status.ACTIVE,
         transaccion: Transacccion.CREAR,
         usuarioCreacion: usuarioId,
       }),
-    )
+    ) as unknown as PagoProveedor
+
+    if (dto.fuenteId) {
+      const monedaLabel = dto.monedaId && tc !== 1
+        ? ` · ${dto.monto} @ TC ${tc.toFixed(4)}`
+        : ''
+      const mov = await this.movimientosFuenteService.registrarExterno(
+        clienteId, dto.fuenteId,
+        TipoMovFuente.EGRESO,
+        `Pago proveedor — ${compra.nroCompra || compraId}${monedaLabel}${dto.referencia ? ' · ' + dto.referencia : ''}`,
+        Number(dto.monto), dto.monedaId, tc,
+        dto.fecha,
+        CategoriaMovimiento.PAGO_PROVEEDOR,
+        'PAGO_PROVEEDOR', pago.id,
+        usuarioId,
+      )
+      await this.pagoRepo.update(pago.id, { movimientoFuenteId: (mov as any).id })
+    }
 
     await this.recalcularPago(clienteId, compraId, usuarioId)
+    const monedaLabel = dto.monedaId && tc !== 1 ? ` (TC: ${tc})` : ''
     await this.log(clienteId, compraId, TipoLog.PAGO, null, null,
-      `Pago registrado: ${dto.metodoPago} Bs ${dto.monto}${dto.referencia ? ' · Ref: ' + dto.referencia : ''}`, usuarioId)
+      `Pago registrado: ${dto.metodoPago} ${dto.monto}${monedaLabel} = Bs ${montoEnBs.toFixed(2)}${dto.fuenteId ? ' · Fuente: ' + dto.fuenteId : ''}${dto.referencia ? ' · Ref: ' + dto.referencia : ''}`, usuarioId)
     return pago
   }
 
@@ -897,6 +973,9 @@ export class ComprasService {
     if (!pago) throw new NotFoundException('Pago no encontrado')
     Object.assign(pago, { estado: Status.ELIMINATE, transaccion: Transacccion.ELIMINAR, usuarioModificacion: usuarioId })
     await this.pagoRepo.save(pago)
+    if (pago.fuenteId) {
+      await this.movimientosFuenteService.cancelarPorOrigen(clienteId, 'PAGO_PROVEEDOR', pagoId, usuarioId)
+    }
     await this.recalcularPago(clienteId, compraId, usuarioId)
     await this.log(clienteId, compraId, TipoLog.PAGO, null, null,
       `Pago eliminado: ${pago.metodoPago} Bs ${pago.monto}`, usuarioId)
@@ -906,16 +985,17 @@ export class ComprasService {
     return this.compraRepo
       .createQueryBuilder('c')
       .select('c.proveedor_id', 'proveedorId')
-      .addSelect('SUM(c.total)', 'totalCompras')
-      .addSelect('SUM(c.monto_pagado)', 'totalPagado')
-      .addSelect('SUM(c.total - c.monto_pagado)', 'saldoPendiente')
       .addSelect('COUNT(c.id)', 'nroCompras')
-      .where('c.cliente_id = :clienteId AND c._estado = :est AND c.proveedor_id IS NOT NULL AND c.estado_compra = :rec', {
+      .addSelect('SUM(c.total * c.tipo_cambio)', 'totalComprasEnBs')
+      .addSelect('SUM(c.monto_pagado)', 'totalPagado')
+      .addSelect('SUM(c.total * c.tipo_cambio - c.monto_pagado)', 'saldoPendiente')
+      .where('c.cliente_id = :clienteId AND c._estado = :est AND c.proveedor_id IS NOT NULL AND c.estado_compra != :anulada AND c.tipo_compra = :tipo', {
         clienteId,
         est: Status.ACTIVE,
-        rec: EstadoCompra.FINALIZADO,
+        anulada: EstadoCompra.ANULADA,
+        tipo: TipoCompra.COMPRA,
       })
-      .andWhere('c.total > c.monto_pagado')
+      .andWhere('c.total * c.tipo_cambio > c.monto_pagado + 0.01')
       .groupBy('c.proveedor_id')
       .getRawMany()
   }
@@ -986,7 +1066,7 @@ export class ComprasService {
   private async recalcularPago(clienteId: string, compraId: string, usuarioId: string): Promise<void> {
     const { suma } = await this.pagoRepo
       .createQueryBuilder('p')
-      .select('COALESCE(SUM(p.monto), 0)', 'suma')
+      .select('COALESCE(SUM(p.monto_en_bs), 0)', 'suma')
       .where('p.compra_id = :compraId AND p.cliente_id = :clienteId AND p._estado = :est', {
         compraId, clienteId, est: Status.ACTIVE,
       })
@@ -996,9 +1076,9 @@ export class ComprasService {
     if (!compra) return
 
     const montoPagado = Number(suma)
-    const total = Number(compra.total)
+    const totalEnBs = Number(compra.total) * Number(compra.tipoCambio || 1)
     let estadoPago = EstadoPagoCompra.PENDIENTE
-    if (montoPagado >= total) estadoPago = EstadoPagoCompra.PAGADO
+    if (montoPagado >= totalEnBs - 0.01) estadoPago = EstadoPagoCompra.PAGADO
     else if (montoPagado > 0) estadoPago = EstadoPagoCompra.PARCIAL
 
     await this.compraRepo.update(compraId, {

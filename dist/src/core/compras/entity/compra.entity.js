@@ -120,6 +120,14 @@ __decorate([
     __metadata("design:type", String)
 ], Compra.prototype, "observacionesFinalizacion", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'moneda', length: 10, default: 'BOB' }),
+    __metadata("design:type", String)
+], Compra.prototype, "moneda", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tipo_cambio', type: 'decimal', precision: 14, scale: 6, default: 1 }),
+    __metadata("design:type", Number)
+], Compra.prototype, "tipoCambio", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'subtotal', type: 'decimal', precision: 14, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], Compra.prototype, "subtotal", void 0);

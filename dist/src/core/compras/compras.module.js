@@ -17,12 +17,14 @@ const lote_entity_1 = require("../lotes/entity/lote.entity");
 const movimiento_stock_entity_1 = require("../movimientos-stock/entity/movimiento-stock.entity");
 const compras_service_1 = require("./service/compras.service");
 const compras_controller_1 = require("./controller/compras.controller");
+const fuentes_module_1 = require("../fuentes/fuentes.module");
 let ComprasModule = class ComprasModule {
 };
 ComprasModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([compra_entity_1.Compra, compra_detalle_entity_1.CompraDetalle, pago_proveedor_entity_1.PagoProveedor, compra_log_entity_1.CompraLog, lote_entity_1.Lote, movimiento_stock_entity_1.MovimientoStock]),
+            fuentes_module_1.FuentesModule,
         ],
         providers: [compras_service_1.ComprasService],
         controllers: [compras_controller_1.ComprasController],

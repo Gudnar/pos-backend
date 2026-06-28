@@ -40,6 +40,8 @@ export declare class Compra extends AuditoriaEntity {
     fechaFinalizacion?: string;
     usuarioFinalizacion?: string;
     observacionesFinalizacion?: string;
+    moneda: string;
+    tipoCambio: number;
     subtotal: number;
     descuento: number;
     total: number;

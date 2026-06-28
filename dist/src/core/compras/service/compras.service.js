@@ -48,8 +48,10 @@ const compra_log_entity_1 = require("../entity/compra-log.entity");
 const lote_entity_1 = require("../../lotes/entity/lote.entity");
 const movimiento_stock_entity_1 = require("../../movimientos-stock/entity/movimiento-stock.entity");
 const constants_1 = require("../../../common/constants");
+const movimientos_fuente_service_1 = require("../../fuentes/service/movimientos-fuente.service");
+const movimiento_fuente_entity_1 = require("../../fuentes/entity/movimiento-fuente.entity");
 let ComprasService = class ComprasService {
-    constructor(compraRepo, detalleRepo, pagoRepo, logRepo, loteRepo, movimientoRepo, dataSource) {
+    constructor(compraRepo, detalleRepo, pagoRepo, logRepo, loteRepo, movimientoRepo, dataSource, movimientosFuenteService) {
         this.compraRepo = compraRepo;
         this.detalleRepo = detalleRepo;
         this.pagoRepo = pagoRepo;
@@ -57,6 +59,7 @@ let ComprasService = class ComprasService {
         this.loteRepo = loteRepo;
         this.movimientoRepo = movimientoRepo;
         this.dataSource = dataSource;
+        this.movimientosFuenteService = movimientosFuenteService;
     }
     async listar(clienteId, filtros = {}) {
         const qb = this.compraRepo
@@ -83,9 +86,15 @@ let ComprasService = class ComprasService {
         const detalles = await this.detalleRepo.find({
             where: { compraId: id, clienteId, estado: constants_1.Status.ACTIVE },
         });
-        const pagos = await this.pagoRepo.find({
-            where: { compraId: id, clienteId, estado: constants_1.Status.ACTIVE },
-        });
+        const schema = process.env.DB_SCHEMA || 'public';
+        const pagos = await this.dataSource.query(`SELECT p.*,
+              f.nombre AS "fuenteNombre", f.tipo AS "fuenteTipo",
+              m.codigo AS "monedaCodigo", m.simbolo AS "monedaSimbolo", m.nombre AS "monedaNombre"
+       FROM "${schema}"."pago_proveedor" p
+       LEFT JOIN "${schema}"."fuente" f ON f.id = p.fuente_id
+       LEFT JOIN "${schema}"."logistica_moneda" m ON m.id = p.moneda_id
+       WHERE p.compra_id = $1 AND p.cliente_id = $2 AND p._estado = $3
+       ORDER BY p.fecha ASC`, [id, clienteId, constants_1.Status.ACTIVE]);
         return { ...compra, detalles, pagos };
     }
     async crear(clienteId, dto, usuarioId) {
@@ -98,6 +107,8 @@ let ComprasService = class ComprasService {
         await qr.connect();
         await qr.startTransaction();
         try {
+            const monedaCompra = dto.moneda || dto.detalles[0]?.moneda || 'BOB';
+            const tcCompra = Number(dto.tipoCambio || 1);
             const compra = await qr.manager.save(compra_entity_1.Compra, {
                 clienteId,
                 sucursalId: dto.sucursalId,
@@ -112,6 +123,8 @@ let ComprasService = class ComprasService {
                 fechaEstimadaLlegada: dto.fechaEstimadaLlegada || null,
                 nroGuiaRemision: dto.nroGuiaRemision || null,
                 transportista: dto.transportista || null,
+                moneda: monedaCompra,
+                tipoCambio: tcCompra,
                 subtotal,
                 descuento: 0,
                 total: subtotal,
@@ -178,6 +191,8 @@ let ComprasService = class ComprasService {
             cambios.push(`Transportista: "${dto.transportista}"`);
         if (dto.fechaEstimadaLlegada !== undefined && dto.fechaEstimadaLlegada !== compra.fechaEstimadaLlegada)
             cambios.push(`Llegada estimada: ${dto.fechaEstimadaLlegada || '—'}`);
+        const nuevaMoneda = dto.moneda ?? compra.moneda ?? 'BOB';
+        const nuevoTc = dto.tipoCambio != null ? Number(dto.tipoCambio) : Number(compra.tipoCambio || 1);
         Object.assign(compra, {
             proveedorId: dto.proveedorId ?? compra.proveedorId,
             sucursalId: dto.sucursalId ?? compra.sucursalId,
@@ -188,6 +203,8 @@ let ComprasService = class ComprasService {
             nroGuiaRemision: dto.nroGuiaRemision !== undefined ? dto.nroGuiaRemision || null : compra.nroGuiaRemision,
             transportista: dto.transportista !== undefined ? dto.transportista || null : compra.transportista,
             observaciones: dto.observaciones !== undefined ? dto.observaciones : compra.observaciones,
+            moneda: nuevaMoneda,
+            tipoCambio: nuevoTc,
             transaccion: constants_1.Transacccion.ACTUALIZAR,
             usuarioModificacion: usuarioId,
         });
@@ -741,16 +758,25 @@ let ComprasService = class ComprasService {
         let sql = `
       SELECT
         p.id, p.fecha, p.monto,
+        p.monto_en_bs    AS "montoEnBs",
+        p.tipo_cambio    AS "tipoCambio",
         p.metodo_pago    AS "metodoPago",
         p.referencia,    p.notas,
         p.proveedor_id   AS "proveedorId",
         p.compra_id      AS "compraId",
+        p.fuente_id      AS "fuenteId",
+        f.nombre         AS "fuenteNombre",
+        f.tipo           AS "fuenteTipo",
+        m.codigo         AS "monedaCodigo",
+        m.simbolo        AS "monedaSimbolo",
         c.nro_compra     AS "nroCompra",
         c.nro_factura    AS "nroFactura",
         c.tipo_compra    AS "tipoCompra",
         c.estado_compra  AS "estadoCompra"
       FROM "${schema}"."pago_proveedor" p
       JOIN "${schema}"."compra" c ON c.id = p.compra_id
+      LEFT JOIN "${schema}"."fuente" f ON f.id = p.fuente_id
+      LEFT JOIN "${schema}"."logistica_moneda" m ON m.id = p.moneda_id
       WHERE p.cliente_id = $1 AND p._estado = $2
     `;
         let idx = 3;
@@ -776,9 +802,29 @@ let ComprasService = class ComprasService {
         const compra = await this.compraRepo.findOne({ where: { id: compraId, clienteId, estado: constants_1.Status.ACTIVE } });
         if (!compra)
             throw new common_1.NotFoundException('Compra no encontrada');
-        const saldo = Number(compra.total) - Number(compra.montoPagado);
-        if (dto.monto > saldo + 0.001) {
-            throw new common_1.BadRequestException(`El monto (${dto.monto}) supera el saldo pendiente (${saldo.toFixed(2)})`);
+        const tc = Number(dto.tipoCambio || 1);
+        const montoEnBs = Number(dto.monto) * tc;
+        const compraMoneda = (compra.moneda || 'BOB').toUpperCase();
+        const esDivisa = !['BS', 'BOB', 'BOL'].includes(compraMoneda);
+        if (esDivisa && dto.monedaId) {
+            const pagosPrevios = await this.pagoRepo.find({ where: { compraId, clienteId, estado: constants_1.Status.ACTIVE } });
+            const pagadoEnDivisa = pagosPrevios
+                .filter(p => p.monedaId)
+                .reduce((acc, p) => acc + Number(p.monto), 0)
+                + pagosPrevios
+                    .filter(p => !p.monedaId)
+                    .reduce((acc, p) => acc + Number(p.montoEnBs) / Number(compra.tipoCambio || 1), 0);
+            const saldoEnDivisa = Number(compra.total) - pagadoEnDivisa;
+            if (Number(dto.monto) > saldoEnDivisa + 0.001) {
+                throw new common_1.BadRequestException(`El monto (${dto.monto} ${compra.moneda}) supera el saldo pendiente (${saldoEnDivisa.toFixed(4)} ${compra.moneda})`);
+            }
+        }
+        else {
+            const totalEnBs = Number(compra.total) * Number(compra.tipoCambio || 1);
+            const saldo = totalEnBs - Number(compra.montoPagado);
+            if (montoEnBs > saldo + 0.01) {
+                throw new common_1.BadRequestException(`El monto en Bs (${montoEnBs.toFixed(2)}) supera el saldo pendiente (${saldo.toFixed(2)})`);
+            }
         }
         const pago = await this.pagoRepo.save(this.pagoRepo.create({
             clienteId,
@@ -787,14 +833,26 @@ let ComprasService = class ComprasService {
             fecha: dto.fecha,
             monto: dto.monto,
             metodoPago: dto.metodoPago,
+            monedaId: dto.monedaId || undefined,
+            tipoCambio: tc,
+            montoEnBs,
             referencia: dto.referencia,
             notas: dto.notas,
+            fuenteId: dto.fuenteId || undefined,
             estado: constants_1.Status.ACTIVE,
             transaccion: constants_1.Transacccion.CREAR,
             usuarioCreacion: usuarioId,
         }));
+        if (dto.fuenteId) {
+            const monedaLabel = dto.monedaId && tc !== 1
+                ? ` · ${dto.monto} @ TC ${tc.toFixed(4)}`
+                : '';
+            const mov = await this.movimientosFuenteService.registrarExterno(clienteId, dto.fuenteId, movimiento_fuente_entity_1.TipoMovimiento.EGRESO, `Pago proveedor — ${compra.nroCompra || compraId}${monedaLabel}${dto.referencia ? ' · ' + dto.referencia : ''}`, Number(dto.monto), dto.monedaId, tc, dto.fecha, movimiento_fuente_entity_1.CategoriaMovimiento.PAGO_PROVEEDOR, 'PAGO_PROVEEDOR', pago.id, usuarioId);
+            await this.pagoRepo.update(pago.id, { movimientoFuenteId: mov.id });
+        }
         await this.recalcularPago(clienteId, compraId, usuarioId);
-        await this.log(clienteId, compraId, compra_log_entity_1.TipoLog.PAGO, null, null, `Pago registrado: ${dto.metodoPago} Bs ${dto.monto}${dto.referencia ? ' · Ref: ' + dto.referencia : ''}`, usuarioId);
+        const monedaLabel = dto.monedaId && tc !== 1 ? ` (TC: ${tc})` : '';
+        await this.log(clienteId, compraId, compra_log_entity_1.TipoLog.PAGO, null, null, `Pago registrado: ${dto.metodoPago} ${dto.monto}${monedaLabel} = Bs ${montoEnBs.toFixed(2)}${dto.fuenteId ? ' · Fuente: ' + dto.fuenteId : ''}${dto.referencia ? ' · Ref: ' + dto.referencia : ''}`, usuarioId);
         return pago;
     }
     async eliminarPago(clienteId, compraId, pagoId, usuarioId) {
@@ -803,6 +861,9 @@ let ComprasService = class ComprasService {
             throw new common_1.NotFoundException('Pago no encontrado');
         Object.assign(pago, { estado: constants_1.Status.ELIMINATE, transaccion: constants_1.Transacccion.ELIMINAR, usuarioModificacion: usuarioId });
         await this.pagoRepo.save(pago);
+        if (pago.fuenteId) {
+            await this.movimientosFuenteService.cancelarPorOrigen(clienteId, 'PAGO_PROVEEDOR', pagoId, usuarioId);
+        }
         await this.recalcularPago(clienteId, compraId, usuarioId);
         await this.log(clienteId, compraId, compra_log_entity_1.TipoLog.PAGO, null, null, `Pago eliminado: ${pago.metodoPago} Bs ${pago.monto}`, usuarioId);
     }
@@ -810,16 +871,17 @@ let ComprasService = class ComprasService {
         return this.compraRepo
             .createQueryBuilder('c')
             .select('c.proveedor_id', 'proveedorId')
-            .addSelect('SUM(c.total)', 'totalCompras')
-            .addSelect('SUM(c.monto_pagado)', 'totalPagado')
-            .addSelect('SUM(c.total - c.monto_pagado)', 'saldoPendiente')
             .addSelect('COUNT(c.id)', 'nroCompras')
-            .where('c.cliente_id = :clienteId AND c._estado = :est AND c.proveedor_id IS NOT NULL AND c.estado_compra = :rec', {
+            .addSelect('SUM(c.total * c.tipo_cambio)', 'totalComprasEnBs')
+            .addSelect('SUM(c.monto_pagado)', 'totalPagado')
+            .addSelect('SUM(c.total * c.tipo_cambio - c.monto_pagado)', 'saldoPendiente')
+            .where('c.cliente_id = :clienteId AND c._estado = :est AND c.proveedor_id IS NOT NULL AND c.estado_compra != :anulada AND c.tipo_compra = :tipo', {
             clienteId,
             est: constants_1.Status.ACTIVE,
-            rec: compra_entity_1.EstadoCompra.FINALIZADO,
+            anulada: compra_entity_1.EstadoCompra.ANULADA,
+            tipo: compra_entity_1.TipoCompra.COMPRA,
         })
-            .andWhere('c.total > c.monto_pagado')
+            .andWhere('c.total * c.tipo_cambio > c.monto_pagado + 0.01')
             .groupBy('c.proveedor_id')
             .getRawMany();
     }
@@ -877,7 +939,7 @@ let ComprasService = class ComprasService {
     async recalcularPago(clienteId, compraId, usuarioId) {
         const { suma } = await this.pagoRepo
             .createQueryBuilder('p')
-            .select('COALESCE(SUM(p.monto), 0)', 'suma')
+            .select('COALESCE(SUM(p.monto_en_bs), 0)', 'suma')
             .where('p.compra_id = :compraId AND p.cliente_id = :clienteId AND p._estado = :est', {
             compraId, clienteId, est: constants_1.Status.ACTIVE,
         })
@@ -886,9 +948,9 @@ let ComprasService = class ComprasService {
         if (!compra)
             return;
         const montoPagado = Number(suma);
-        const total = Number(compra.total);
+        const totalEnBs = Number(compra.total) * Number(compra.tipoCambio || 1);
         let estadoPago = compra_entity_1.EstadoPagoCompra.PENDIENTE;
-        if (montoPagado >= total)
+        if (montoPagado >= totalEnBs - 0.01)
             estadoPago = compra_entity_1.EstadoPagoCompra.PAGADO;
         else if (montoPagado > 0)
             estadoPago = compra_entity_1.EstadoPagoCompra.PARCIAL;
@@ -920,7 +982,8 @@ ComprasService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.DataSource])
+        typeorm_2.DataSource,
+        movimientos_fuente_service_1.MovimientosFuenteService])
 ], ComprasService);
 exports.ComprasService = ComprasService;
 //# sourceMappingURL=compras.service.js.map

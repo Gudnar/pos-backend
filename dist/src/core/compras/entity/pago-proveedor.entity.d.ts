@@ -16,5 +16,10 @@ export declare class PagoProveedor extends AuditoriaEntity {
     metodoPago: string;
     referencia?: string;
     notas?: string;
+    monedaId?: string;
+    tipoCambio: number;
+    montoEnBs?: number;
+    fuenteId?: string;
+    movimientoFuenteId?: string;
     constructor(data?: Partial<PagoProveedor>);
 }

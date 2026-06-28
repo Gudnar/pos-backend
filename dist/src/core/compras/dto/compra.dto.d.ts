@@ -15,6 +15,8 @@ export declare class CreateCompraDto {
     proveedorId?: string;
     tipoCompra: string;
     fecha: string;
+    moneda?: string;
+    tipoCambio?: number;
     nroFactura?: string;
     fechaEnvio?: string;
     fechaEstimadaLlegada?: string;
@@ -53,6 +55,8 @@ export declare class EditarOrdenDto {
     proveedorId?: string;
     sucursalId?: string;
     fecha?: string;
+    moneda?: string;
+    tipoCambio?: number;
     nroFactura?: string;
     fechaEnvio?: string;
     fechaEstimadaLlegada?: string;
@@ -72,6 +76,9 @@ export declare class CreatePagoProveedorDto {
     fecha: string;
     monto: number;
     metodoPago: string;
+    monedaId?: string;
+    tipoCambio?: number;
     referencia?: string;
     notas?: string;
+    fuenteId?: string;
 }

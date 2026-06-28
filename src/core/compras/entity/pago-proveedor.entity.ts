@@ -38,6 +38,21 @@ export class PagoProveedor extends AuditoriaEntity {
   @Column({ name: 'notas', type: 'text', nullable: true })
   notas?: string
 
+  @Column({ name: 'moneda_id', type: 'uuid', nullable: true })
+  monedaId?: string
+
+  @Column({ name: 'tipo_cambio', type: 'decimal', precision: 14, scale: 6, default: 1 })
+  tipoCambio: number
+
+  @Column({ name: 'monto_en_bs', type: 'decimal', precision: 14, scale: 2, nullable: true })
+  montoEnBs?: number
+
+  @Column({ name: 'fuente_id', type: 'uuid', nullable: true })
+  fuenteId?: string
+
+  @Column({ name: 'movimiento_fuente_id', type: 'uuid', nullable: true })
+  movimientoFuenteId?: string
+
   constructor(data?: Partial<PagoProveedor>) {
     super(data)
     if (data) Object.assign(this, data)

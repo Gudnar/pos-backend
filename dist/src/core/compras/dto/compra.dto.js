@@ -89,6 +89,17 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], CreateCompraDto.prototype, "moneda", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsPositive)(),
+    __metadata("design:type", Number)
+], CreateCompraDto.prototype, "tipoCambio", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateCompraDto.prototype, "nroFactura", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -244,6 +255,17 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], EditarOrdenDto.prototype, "moneda", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsPositive)(),
+    __metadata("design:type", Number)
+], EditarOrdenDto.prototype, "tipoCambio", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], EditarOrdenDto.prototype, "nroFactura", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -316,6 +338,17 @@ __decorate([
 ], CreatePagoProveedorDto.prototype, "metodoPago", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreatePagoProveedorDto.prototype, "monedaId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.000001),
+    __metadata("design:type", Number)
+], CreatePagoProveedorDto.prototype, "tipoCambio", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePagoProveedorDto.prototype, "referencia", void 0);
@@ -324,5 +357,10 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePagoProveedorDto.prototype, "notas", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreatePagoProveedorDto.prototype, "fuenteId", void 0);
 exports.CreatePagoProveedorDto = CreatePagoProveedorDto;
 //# sourceMappingURL=compra.dto.js.map

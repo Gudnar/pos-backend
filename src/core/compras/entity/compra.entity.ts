@@ -95,6 +95,12 @@ export class Compra extends AuditoriaEntity {
 
   // ── Financials ──────────────────────────────────────────────────────────────
 
+  @Column({ name: 'moneda', length: 10, default: 'BOB' })
+  moneda: string
+
+  @Column({ name: 'tipo_cambio', type: 'decimal', precision: 14, scale: 6, default: 1 })
+  tipoCambio: number
+
   @Column({ name: 'subtotal', type: 'decimal', precision: 14, scale: 2, default: 0 })
   subtotal: number
 

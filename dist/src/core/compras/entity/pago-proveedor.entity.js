@@ -62,6 +62,26 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'notas', type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], PagoProveedor.prototype, "notas", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'moneda_id', type: 'uuid', nullable: true }),
+    __metadata("design:type", String)
+], PagoProveedor.prototype, "monedaId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tipo_cambio', type: 'decimal', precision: 14, scale: 6, default: 1 }),
+    __metadata("design:type", Number)
+], PagoProveedor.prototype, "tipoCambio", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'monto_en_bs', type: 'decimal', precision: 14, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], PagoProveedor.prototype, "montoEnBs", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'fuente_id', type: 'uuid', nullable: true }),
+    __metadata("design:type", String)
+], PagoProveedor.prototype, "fuenteId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'movimiento_fuente_id', type: 'uuid', nullable: true }),
+    __metadata("design:type", String)
+], PagoProveedor.prototype, "movimientoFuenteId", void 0);
 PagoProveedor = __decorate([
     (0, typeorm_1.Entity)({ name: 'pago_proveedor', schema: process.env.DB_SCHEMA || 'public' }),
     __metadata("design:paramtypes", [Object])
