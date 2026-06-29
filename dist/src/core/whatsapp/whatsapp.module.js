@@ -21,11 +21,13 @@ const campana_module_1 = require("../campana/campana.module");
 const herramienta_module_1 = require("../herramienta/herramienta.module");
 const biz_intel_module_1 = require("../biz-intel/biz-intel.module");
 const admin_gerente_module_1 = require("../admin-gerente/admin-gerente.module");
+const fuentes_module_1 = require("../fuentes/fuentes.module");
+const whatsapp_flows_module_1 = require("../whatsapp-flows/whatsapp-flows.module");
 let WhatsappModule = class WhatsappModule {
 };
 WhatsappModule = __decorate([
     (0, common_1.Module)({
-        imports: [cliente_module_1.ClienteModule, conversacion_module_1.ConversacionModule, agente_module_1.AgenteModule, citas_medicas_module_1.CitasMedicasModule, campana_module_1.CampanaModule, herramienta_module_1.HerramientaModule, biz_intel_module_1.BizIntelModule, admin_gerente_module_1.AdminGerenteModule],
+        imports: [cliente_module_1.ClienteModule, conversacion_module_1.ConversacionModule, agente_module_1.AgenteModule, citas_medicas_module_1.CitasMedicasModule, campana_module_1.CampanaModule, herramienta_module_1.HerramientaModule, biz_intel_module_1.BizIntelModule, admin_gerente_module_1.AdminGerenteModule, fuentes_module_1.FuentesModule, whatsapp_flows_module_1.WhatsappFlowsModule],
         controllers: [whatsapp_controller_1.WhatsappController],
         providers: [whatsapp_service_1.WhatsappService, whatsapp_webhook_service_1.WhatsappWebhookService, clinica_tools_service_1.ClinicaToolsService, calificacion_background_service_1.CalificacionBackgroundService],
         exports: [whatsapp_service_1.WhatsappService],

@@ -67,6 +67,8 @@ let MovimientosFuenteService = class MovimientosFuenteService {
             qb.andWhere('m.tipo = :tipo', { tipo: filters.tipo });
         if (filters?.categoria)
             qb.andWhere('m.categoria = :categoria', { categoria: filters.categoria });
+        if (filters?.concepto)
+            qb.andWhere('m.concepto ILIKE :concepto', { concepto: `%${filters.concepto}%` });
         return qb.getMany();
     }
     async registrar(clienteId, fuenteId, dto, usuarioCreacion) {

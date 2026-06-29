@@ -14,6 +14,7 @@ export declare class MovimientosFuenteService {
         hasta?: string;
         tipo?: string;
         categoria?: string;
+        concepto?: string;
     }): Promise<MovimientoFuente[]>;
     registrar(clienteId: string, fuenteId: string, dto: CreateMovimientoFuenteDto, usuarioCreacion: string): Promise<MovimientoFuente>;
     registrarExterno(clienteId: string, fuenteId: string, tipo: string, concepto: string, monto: number, monedaId: string | undefined, tipoCambio: number, fecha: string, categoria: string, origenTipo: string, origenId: string, usuarioCreacion: string): Promise<MovimientoFuente>;

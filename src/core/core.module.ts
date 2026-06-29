@@ -36,6 +36,7 @@ import { LogisticaPaisesModule } from './logistica-paises/logistica-paises.modul
 import { FuentesModule } from './fuentes/fuentes.module'
 import { IngresosModule } from './ingresos/ingresos.module'
 import { GastosModule } from './gastos/gastos.module'
+import { WhatsappFlowsModule } from './whatsapp-flows/whatsapp-flows.module'
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { GastosModule } from './gastos/gastos.module'
     FuentesModule,
     IngresosModule,
     GastosModule,
+    WhatsappFlowsModule,
   ],
 })
 export class CoreModule {}

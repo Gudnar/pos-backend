@@ -45,7 +45,7 @@ export class MovimientosFuenteService {
     }
   }
 
-  async listar(clienteId: string, fuenteId: string, filters?: { desde?: string; hasta?: string; tipo?: string; categoria?: string }): Promise<MovimientoFuente[]> {
+  async listar(clienteId: string, fuenteId: string, filters?: { desde?: string; hasta?: string; tipo?: string; categoria?: string; concepto?: string }): Promise<MovimientoFuente[]> {
     await this.validarFuente(clienteId, fuenteId)
     const qb = this.repo
       .createQueryBuilder('m')
@@ -58,6 +58,7 @@ export class MovimientosFuenteService {
     if (filters?.hasta) qb.andWhere('m.fecha <= :hasta', { hasta: filters.hasta })
     if (filters?.tipo) qb.andWhere('m.tipo = :tipo', { tipo: filters.tipo })
     if (filters?.categoria) qb.andWhere('m.categoria = :categoria', { categoria: filters.categoria })
+    if (filters?.concepto) qb.andWhere('m.concepto ILIKE :concepto', { concepto: `%${filters.concepto}%` })
     return qb.getMany()
   }
 

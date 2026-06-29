@@ -11,8 +11,14 @@ import { CampanaService } from '../../campana/service/campana.service'
 import { AgentToolsService } from '../../herramienta/service/agent-tools.service'
 import { BizIntelToolsService } from '../../biz-intel/service/biz-intel-tools.service'
 import { AdminGerenteService } from '../../admin-gerente/service/admin-gerente.service'
+import { WhatsappFlowsService } from '../../whatsapp-flows/service/whatsapp-flows.service'
 import { WaWebhookMessage } from '../dto/whatsapp.dto'
 import { USUARIO_SISTEMA } from '../../../common/constants'
+
+const FLOW_KEYWORDS = [
+  'registrar ingreso', 'nuevo ingreso', 'anotar ingreso',
+  'registrar gasto',   'nuevo gasto',   'anotar gasto',
+]
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages'
 const MAX_HISTORY_MESSAGES = 20
@@ -34,6 +40,7 @@ export class WhatsappWebhookService {
     private readonly agentTools: AgentToolsService,
     private readonly bizIntelTools: BizIntelToolsService,
     private readonly adminGerenteService: AdminGerenteService,
+    private readonly waFlowsService: WhatsappFlowsService,
   ) {}
 
   // ── Main entry point called by controller ────────────────────
@@ -78,6 +85,15 @@ export class WhatsappWebhookService {
         const adminConfig = await this.waService.obtenerConfig(clienteId)
         this.waService.marcarLeido(rawMessage.id, adminConfig).catch(() => {})
         this.waService.mostrarTyping(rawMessage.id, adminConfig).catch(() => {})
+
+        // Detectar intención de registrar ingreso/gasto → abrir WhatsApp Flow
+        const textoLower = textoUsuario.toLowerCase()
+        if (FLOW_KEYWORDS.some(kw => textoLower.includes(kw))) {
+          this.logger.log(`[WA] Gerente — intención de Flow detectada: "${textoUsuario.slice(0, 60)}"`)
+          await this.waFlowsService.enviarFlow(from, clienteId)
+          return
+        }
+
         const apiKeyCfg = await this.confClienteService.obtenerPorClave(clienteId, 'ANTHROPIC_API_KEY').catch(() => null)
         const apiKey = apiKeyCfg?.valor
         if (apiKey && !apiKey.includes('•')) {

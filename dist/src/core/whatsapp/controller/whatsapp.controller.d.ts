@@ -2,14 +2,16 @@ import { Response } from 'express';
 import { WhatsappService } from '../service/whatsapp.service';
 import { WhatsappWebhookService } from '../service/whatsapp-webhook.service';
 import { ConfiguracionClienteService } from '../../cliente/service/configuracion-cliente.service';
+import { FuentesService } from '../../fuentes/service/fuentes.service';
 import { WhatsappConfigDto, EnviarMensajeDto, TestConexionDto } from '../dto/whatsapp.dto';
 import { SuccessResponseDto } from '../../../common/dto/success-response.dto';
 export declare class WhatsappController {
     private readonly waService;
     private readonly webhookService;
     private readonly confClienteService;
+    private readonly fuentesService;
     private readonly logger;
-    constructor(waService: WhatsappService, webhookService: WhatsappWebhookService, confClienteService: ConfiguracionClienteService);
+    constructor(waService: WhatsappService, webhookService: WhatsappWebhookService, confClienteService: ConfiguracionClienteService, fuentesService: FuentesService);
     verificarWebhook(query: any, res: Response): Promise<void>;
     recibirWebhook(body: any): Promise<string>;
     obtenerConfig(req: any): Promise<{
@@ -43,4 +45,5 @@ export declare class WhatsappController {
         };
     }>;
     guardarOwnerAgent(body: any, req: any): Promise<SuccessResponseDto>;
+    flowDataExchange(body: any, phoneNumberId: string, clienteIdParam: string, res: Response): Promise<void>;
 }

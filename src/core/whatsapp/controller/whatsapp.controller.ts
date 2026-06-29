@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../authentication/guards/jwt-auth.guard'
 import { WhatsappService } from '../service/whatsapp.service'
 import { WhatsappWebhookService } from '../service/whatsapp-webhook.service'
 import { ConfiguracionClienteService } from '../../cliente/service/configuracion-cliente.service'
+import { FuentesService } from '../../fuentes/service/fuentes.service'
 import { WhatsappConfigDto, EnviarMensajeDto, TestConexionDto, WaWebhookMessage, WaContact } from '../dto/whatsapp.dto'
 import { SuccessResponseDto } from '../../../common/dto/success-response.dto'
 
@@ -15,6 +16,7 @@ export class WhatsappController {
     private readonly waService: WhatsappService,
     private readonly webhookService: WhatsappWebhookService,
     private readonly confClienteService: ConfiguracionClienteService,
+    private readonly fuentesService: FuentesService,
   ) {}
 
   // ── Webhook verification (GET) ────────────────────────────────
@@ -144,5 +146,52 @@ export class WhatsappController {
       this.confClienteService.set(req.user.clienteId, { clave: 'OWNER_SYSTEM_PROMPT', valor: body.systemPrompt || '' }, req.user.id),
     ])
     return new SuccessResponseDto(null, 'Configuración del asistente del dueño guardada')
+  }
+
+  // ── WhatsApp Flow — Data Exchange ─────────────────────────────
+  // Endpoint público llamado por Meta. Identificar el cliente mediante
+  // ?phoneNumberId=<WA_PHONE_NUMBER_ID> en la URL del Flow.
+
+  @Post('flow-data-exchange')
+  @HttpCode(200)
+  async flowDataExchange(
+    @Body() body: any,
+    @Query('phoneNumberId') phoneNumberId: string,
+    @Query('clienteId') clienteIdParam: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { action, screen } = body ?? {}
+    this.logger.log(`[WA-Flow] action=${action} screen=${screen} phoneNumberId=${phoneNumberId}`)
+
+    const clienteId = clienteIdParam
+      || (phoneNumberId ? await this.confClienteService.resolverClientePorPhoneNumberId(phoneNumberId) : null)
+
+    if (!clienteId) {
+      res.status(400).json({ error: 'phoneNumberId no reconocido o clienteId no proporcionado' })
+      return
+    }
+
+    if (action === 'ping' || (action === 'data_exchange' && screen === 'SELECCIONAR_CUENTA_PAGO')) {
+      const fuentes = await this.fuentesService.listar(clienteId)
+
+      const cuentasFormateadas = fuentes
+        .filter(f => f.activo !== false)
+        .map(f => ({
+          id: f.id,
+          title: f.nombre,
+          description: [f.banco, f.numeroCuenta].filter(Boolean).join(' · ') || f.tipo,
+        }))
+
+      res.status(200).json({
+        version: '3.1',
+        screen: 'SELECCIONAR_CUENTA_PAGO',
+        data: {
+          cuentas_bancarias: cuentasFormateadas,
+        },
+      })
+      return
+    }
+
+    res.status(400).json({ error: 'Acción no soportada' })
   }
 }

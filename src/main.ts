@@ -45,6 +45,8 @@ const bootstrap = async () => {
     exclude: [
       { path: 'whatsapp/webhook', method: RequestMethod.GET },
       { path: 'whatsapp/webhook', method: RequestMethod.POST },
+      { path: 'whatsapp/flow-data-exchange', method: RequestMethod.POST },
+      { path: 'whatsapp/flow',    method: RequestMethod.POST },
     ],
   })
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }))

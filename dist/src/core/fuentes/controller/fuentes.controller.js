@@ -51,8 +51,8 @@ let FuentesController = class FuentesController {
         await this.fuentesSvc.eliminar(req.user.clienteId, id, req.user.id);
         return { finalizado: true, mensaje: response_messages_1.Messages.SUCCESS_DELETE, datos: null };
     }
-    async listarMovimientos(req, id, desde, hasta, tipo, categoria) {
-        const datos = await this.movimientosSvc.listar(req.user.clienteId, id, { desde, hasta, tipo, categoria });
+    async listarMovimientos(req, id, desde, hasta, tipo, categoria, concepto) {
+        const datos = await this.movimientosSvc.listar(req.user.clienteId, id, { desde, hasta, tipo, categoria, concepto });
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async registrarMovimiento(req, id, dto) {
@@ -128,8 +128,9 @@ __decorate([
     __param(3, (0, common_1.Query)('hasta')),
     __param(4, (0, common_1.Query)('tipo')),
     __param(5, (0, common_1.Query)('categoria')),
+    __param(6, (0, common_1.Query)('concepto')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], FuentesController.prototype, "listarMovimientos", null);
 __decorate([

@@ -45,6 +45,7 @@ const logistica_paises_module_1 = require("./logistica-paises/logistica-paises.m
 const fuentes_module_1 = require("./fuentes/fuentes.module");
 const ingresos_module_1 = require("./ingresos/ingresos.module");
 const gastos_module_1 = require("./gastos/gastos.module");
+const whatsapp_flows_module_1 = require("./whatsapp-flows/whatsapp-flows.module");
 let CoreModule = class CoreModule {
 };
 CoreModule = __decorate([
@@ -101,6 +102,7 @@ CoreModule = __decorate([
             fuentes_module_1.FuentesModule,
             ingresos_module_1.IngresosModule,
             gastos_module_1.GastosModule,
+            whatsapp_flows_module_1.WhatsappFlowsModule,
         ],
     })
 ], CoreModule);

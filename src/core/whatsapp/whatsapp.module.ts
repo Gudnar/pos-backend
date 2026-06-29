@@ -12,9 +12,11 @@ import { CampanaModule } from '../campana/campana.module'
 import { HerramientaModule } from '../herramienta/herramienta.module'
 import { BizIntelModule } from '../biz-intel/biz-intel.module'
 import { AdminGerenteModule } from '../admin-gerente/admin-gerente.module'
+import { FuentesModule } from '../fuentes/fuentes.module'
+import { WhatsappFlowsModule } from '../whatsapp-flows/whatsapp-flows.module'
 
 @Module({
-  imports: [ClienteModule, ConversacionModule, AgenteModule, CitasMedicasModule, CampanaModule, HerramientaModule, BizIntelModule, AdminGerenteModule],
+  imports: [ClienteModule, ConversacionModule, AgenteModule, CitasMedicasModule, CampanaModule, HerramientaModule, BizIntelModule, AdminGerenteModule, FuentesModule, WhatsappFlowsModule],
   controllers: [WhatsappController],
   providers: [WhatsappService, WhatsappWebhookService, ClinicaToolsService, CalificacionBackgroundService],
   exports: [WhatsappService],

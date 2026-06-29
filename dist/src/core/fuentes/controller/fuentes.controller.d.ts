@@ -36,7 +36,7 @@ export declare class FuentesController {
         mensaje: string;
         datos: null;
     }>;
-    listarMovimientos(req: any, id: string, desde?: string, hasta?: string, tipo?: string, categoria?: string): Promise<{
+    listarMovimientos(req: any, id: string, desde?: string, hasta?: string, tipo?: string, categoria?: string, concepto?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: import("../entity/movimiento-fuente.entity").MovimientoFuente[];

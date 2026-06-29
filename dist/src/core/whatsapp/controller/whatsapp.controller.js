@@ -19,13 +19,15 @@ const jwt_auth_guard_1 = require("../../authentication/guards/jwt-auth.guard");
 const whatsapp_service_1 = require("../service/whatsapp.service");
 const whatsapp_webhook_service_1 = require("../service/whatsapp-webhook.service");
 const configuracion_cliente_service_1 = require("../../cliente/service/configuracion-cliente.service");
+const fuentes_service_1 = require("../../fuentes/service/fuentes.service");
 const whatsapp_dto_1 = require("../dto/whatsapp.dto");
 const success_response_dto_1 = require("../../../common/dto/success-response.dto");
 let WhatsappController = WhatsappController_1 = class WhatsappController {
-    constructor(waService, webhookService, confClienteService) {
+    constructor(waService, webhookService, confClienteService, fuentesService) {
         this.waService = waService;
         this.webhookService = webhookService;
         this.confClienteService = confClienteService;
+        this.fuentesService = fuentesService;
         this.logger = new common_1.Logger(WhatsappController_1.name);
     }
     async verificarWebhook(query, res) {
@@ -114,6 +116,35 @@ let WhatsappController = WhatsappController_1 = class WhatsappController {
             this.confClienteService.set(req.user.clienteId, { clave: 'OWNER_SYSTEM_PROMPT', valor: body.systemPrompt || '' }, req.user.id),
         ]);
         return new success_response_dto_1.SuccessResponseDto(null, 'Configuración del asistente del dueño guardada');
+    }
+    async flowDataExchange(body, phoneNumberId, clienteIdParam, res) {
+        const { action, screen } = body ?? {};
+        this.logger.log(`[WA-Flow] action=${action} screen=${screen} phoneNumberId=${phoneNumberId}`);
+        const clienteId = clienteIdParam
+            || (phoneNumberId ? await this.confClienteService.resolverClientePorPhoneNumberId(phoneNumberId) : null);
+        if (!clienteId) {
+            res.status(400).json({ error: 'phoneNumberId no reconocido o clienteId no proporcionado' });
+            return;
+        }
+        if (action === 'ping' || (action === 'data_exchange' && screen === 'SELECCIONAR_CUENTA_PAGO')) {
+            const fuentes = await this.fuentesService.listar(clienteId);
+            const cuentasFormateadas = fuentes
+                .filter(f => f.activo !== false)
+                .map(f => ({
+                id: f.id,
+                title: f.nombre,
+                description: [f.banco, f.numeroCuenta].filter(Boolean).join(' · ') || f.tipo,
+            }));
+            res.status(200).json({
+                version: '3.1',
+                screen: 'SELECCIONAR_CUENTA_PAGO',
+                data: {
+                    cuentas_bancarias: cuentasFormateadas,
+                },
+            });
+            return;
+        }
+        res.status(400).json({ error: 'Acción no soportada' });
     }
 };
 __decorate([
@@ -208,11 +239,23 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], WhatsappController.prototype, "guardarOwnerAgent", null);
+__decorate([
+    (0, common_1.Post)('flow-data-exchange'),
+    (0, common_1.HttpCode)(200),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Query)('phoneNumberId')),
+    __param(2, (0, common_1.Query)('clienteId')),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], WhatsappController.prototype, "flowDataExchange", null);
 WhatsappController = WhatsappController_1 = __decorate([
     (0, common_1.Controller)('whatsapp'),
     __metadata("design:paramtypes", [whatsapp_service_1.WhatsappService,
         whatsapp_webhook_service_1.WhatsappWebhookService,
-        configuracion_cliente_service_1.ConfiguracionClienteService])
+        configuracion_cliente_service_1.ConfiguracionClienteService,
+        fuentes_service_1.FuentesService])
 ], WhatsappController);
 exports.WhatsappController = WhatsappController;
 //# sourceMappingURL=whatsapp.controller.js.map

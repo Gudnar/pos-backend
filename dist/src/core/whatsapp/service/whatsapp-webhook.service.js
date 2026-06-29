@@ -27,12 +27,17 @@ const campana_service_1 = require("../../campana/service/campana.service");
 const agent_tools_service_1 = require("../../herramienta/service/agent-tools.service");
 const biz_intel_tools_service_1 = require("../../biz-intel/service/biz-intel-tools.service");
 const admin_gerente_service_1 = require("../../admin-gerente/service/admin-gerente.service");
+const whatsapp_flows_service_1 = require("../../whatsapp-flows/service/whatsapp-flows.service");
 const constants_1 = require("../../../common/constants");
+const FLOW_KEYWORDS = [
+    'registrar ingreso', 'nuevo ingreso', 'anotar ingreso',
+    'registrar gasto', 'nuevo gasto', 'anotar gasto',
+];
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
 const MAX_HISTORY_MESSAGES = 20;
 const MAX_TOOL_ITERATIONS = 6;
 let WhatsappWebhookService = WhatsappWebhookService_1 = class WhatsappWebhookService {
-    constructor(waService, conversacionService, agenteService, confClienteService, clienteService, clinicaTools, calificacionBg, campanaService, agentTools, bizIntelTools, adminGerenteService) {
+    constructor(waService, conversacionService, agenteService, confClienteService, clienteService, clinicaTools, calificacionBg, campanaService, agentTools, bizIntelTools, adminGerenteService, waFlowsService) {
         this.waService = waService;
         this.conversacionService = conversacionService;
         this.agenteService = agenteService;
@@ -44,6 +49,7 @@ let WhatsappWebhookService = WhatsappWebhookService_1 = class WhatsappWebhookSer
         this.agentTools = agentTools;
         this.bizIntelTools = bizIntelTools;
         this.adminGerenteService = adminGerenteService;
+        this.waFlowsService = waFlowsService;
         this.logger = new common_1.Logger(WhatsappWebhookService_1.name);
     }
     async procesarMensajeEntrante(rawMessage, contactName, phoneNumberId) {
@@ -75,6 +81,12 @@ let WhatsappWebhookService = WhatsappWebhookService_1 = class WhatsappWebhookSer
                 const adminConfig = await this.waService.obtenerConfig(clienteId);
                 this.waService.marcarLeido(rawMessage.id, adminConfig).catch(() => { });
                 this.waService.mostrarTyping(rawMessage.id, adminConfig).catch(() => { });
+                const textoLower = textoUsuario.toLowerCase();
+                if (FLOW_KEYWORDS.some(kw => textoLower.includes(kw))) {
+                    this.logger.log(`[WA] Gerente — intención de Flow detectada: "${textoUsuario.slice(0, 60)}"`);
+                    await this.waFlowsService.enviarFlow(from, clienteId);
+                    return;
+                }
                 const apiKeyCfg = await this.confClienteService.obtenerPorClave(clienteId, 'ANTHROPIC_API_KEY').catch(() => null);
                 const apiKey = apiKeyCfg?.valor;
                 if (apiKey && !apiKey.includes('•')) {
@@ -347,7 +359,8 @@ WhatsappWebhookService = WhatsappWebhookService_1 = __decorate([
         campana_service_1.CampanaService,
         agent_tools_service_1.AgentToolsService,
         biz_intel_tools_service_1.BizIntelToolsService,
-        admin_gerente_service_1.AdminGerenteService])
+        admin_gerente_service_1.AdminGerenteService,
+        whatsapp_flows_service_1.WhatsappFlowsService])
 ], WhatsappWebhookService);
 exports.WhatsappWebhookService = WhatsappWebhookService;
 //# sourceMappingURL=whatsapp-webhook.service.js.map

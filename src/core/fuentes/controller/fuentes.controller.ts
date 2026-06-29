@@ -66,8 +66,9 @@ export class FuentesController {
     @Query('hasta') hasta?: string,
     @Query('tipo') tipo?: string,
     @Query('categoria') categoria?: string,
+    @Query('concepto') concepto?: string,
   ) {
-    const datos = await this.movimientosSvc.listar(req.user.clienteId, id, { desde, hasta, tipo, categoria })
+    const datos = await this.movimientosSvc.listar(req.user.clienteId, id, { desde, hasta, tipo, categoria, concepto })
     return { finalizado: true, mensaje: 'OK', datos }
   }
 

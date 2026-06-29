@@ -9,6 +9,7 @@ import { CampanaService } from '../../campana/service/campana.service';
 import { AgentToolsService } from '../../herramienta/service/agent-tools.service';
 import { BizIntelToolsService } from '../../biz-intel/service/biz-intel-tools.service';
 import { AdminGerenteService } from '../../admin-gerente/service/admin-gerente.service';
+import { WhatsappFlowsService } from '../../whatsapp-flows/service/whatsapp-flows.service';
 import { WaWebhookMessage } from '../dto/whatsapp.dto';
 export declare class WhatsappWebhookService {
     private readonly waService;
@@ -22,8 +23,9 @@ export declare class WhatsappWebhookService {
     private readonly agentTools;
     private readonly bizIntelTools;
     private readonly adminGerenteService;
+    private readonly waFlowsService;
     private readonly logger;
-    constructor(waService: WhatsappService, conversacionService: ConversacionService, agenteService: AgenteService, confClienteService: ConfiguracionClienteService, clienteService: ClienteService, clinicaTools: ClinicaToolsService, calificacionBg: CalificacionBackgroundService, campanaService: CampanaService, agentTools: AgentToolsService, bizIntelTools: BizIntelToolsService, adminGerenteService: AdminGerenteService);
+    constructor(waService: WhatsappService, conversacionService: ConversacionService, agenteService: AgenteService, confClienteService: ConfiguracionClienteService, clienteService: ClienteService, clinicaTools: ClinicaToolsService, calificacionBg: CalificacionBackgroundService, campanaService: CampanaService, agentTools: AgentToolsService, bizIntelTools: BizIntelToolsService, adminGerenteService: AdminGerenteService, waFlowsService: WhatsappFlowsService);
     procesarMensajeEntrante(rawMessage: WaWebhookMessage, contactName: string, phoneNumberId: string): Promise<void>;
     private procesarMensajeDueno;
     private llamarClaudeConHerramientas;
