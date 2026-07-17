@@ -57,15 +57,44 @@ export class LotesController {
     return { finalizado: true, mensaje: 'OK', datos }
   }
 
-  @Get(':id')
-  async obtener(@Req() req: any, @Param('id') id: string) {
-    const datos = await this.svc.obtener(req.user.clienteId, id)
+  @Get('producto/:productoId')
+  async listarPorProductoRoute(
+    @Req() req: any,
+    @Param('productoId') productoId: string,
+    @Query('sucursalId') sucursalId?: string,
+  ) {
+    const datos = await this.svc.listarPorProducto(req.user.clienteId, sucursalId, productoId)
     return { finalizado: true, mensaje: 'OK', datos }
+  }
+
+  @Get(':id/stock')
+  async obtenerStock(@Req() req: any, @Param('id') id: string) {
+    const lote = await this.svc.obtener(req.user.clienteId, id)
+    // Obtener movimientos para calcular stock actual
+    const movimientos = await this.svc.obtenerMovimientos(id)
+    const stock = movimientos.length > 0 ? movimientos[movimientos.length - 1].cantidadPosterior : 0
+    return {
+      finalizado: true,
+      mensaje: 'OK',
+      datos: {
+        id,
+        stock,
+        nroLote: lote.nroLote,
+        precioVentaSF: lote.precioVentaSF,
+        precioVentaCF: lote.precioVentaCF,
+      },
+    }
   }
 
   @Get(':id/trazabilidad')
   async trazabilidad(@Req() req: any, @Param('id') id: string) {
     const datos = await this.svc.trazabilidad(req.user.clienteId, id)
+    return { finalizado: true, mensaje: 'OK', datos }
+  }
+
+  @Get(':id')
+  async obtener(@Req() req: any, @Param('id') id: string) {
+    const datos = await this.svc.obtener(req.user.clienteId, id)
     return { finalizado: true, mensaje: 'OK', datos }
   }
 

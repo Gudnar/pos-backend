@@ -225,6 +225,21 @@ let OrdenesImportacionService = class OrdenesImportacionService {
                     item.utilidadToneladaConIva = (item.precioVentaConIva - Number(item.costoTotalUnitario)) * 1000;
                 }
             }
+            else if (dto.componenteCompra && dto.componenteLogistica) {
+                const aplicarComponente = (base, comp) => base * Number(comp.multiplicador) + Number(comp.sumarFijo ?? 0);
+                const logUnit = Number(item.cantidadUnidades) > 0
+                    ? (totalGastosPrecioBase * factorPrecio) / Number(item.cantidadUnidades)
+                    : 0;
+                const compraUnit = Number(item.precioUnitarioMonedaBase ?? 0);
+                precioSugerido = aplicarComponente(compraUnit, dto.componenteCompra)
+                    + aplicarComponente(logUnit, dto.componenteLogistica)
+                    + Number(dto.ajusteFijo ?? 0);
+                const ajustePorcentaje = Number(dto.ajustePorcentaje ?? 0);
+                if (ajustePorcentaje)
+                    precioSugerido = precioSugerido * (1 + ajustePorcentaje / 100);
+                precioSugerido = aplicarRedondeo(Math.max(0, precioSugerido), dto.redondeo);
+                margen = costoUnitPrecio > 0 ? ((precioSugerido / costoUnitPrecio) - 1) * 100 : 0;
+            }
             else if (dto.formula) {
                 const baseVal = dto.formula.base === 'costoProducto'
                     ? Number(item.precioUnitarioMonedaBase)
@@ -238,6 +253,15 @@ let OrdenesImportacionService = class OrdenesImportacionService {
             }
             item.margenAplicado = margen;
             item.precioVentaSugerido = precioSugerido;
+            if (dto.tasaIva != null) {
+                const iva = Number(dto.tasaIva);
+                item.precioVentaConIva = precioSugerido * (1 + iva);
+                item.utilidadTonelada = (precioSugerido - Number(item.costoTotalUnitario)) * 1000;
+                item.utilidadToneladaConIva = (item.precioVentaConIva - Number(item.costoTotalUnitario)) * 1000;
+            }
+            else if (!modoDirecto || !precioManualMap.has(item.id)) {
+                item.utilidadTonelada = (precioSugerido - Number(item.costoTotalUnitario)) * 1000;
+            }
             Object.assign(item, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
             if (item.productoId) {
                 const gastosDesc = gastosParaPrecio.length < gastos.length
@@ -248,18 +272,26 @@ let OrdenesImportacionService = class OrdenesImportacionService {
                     : '';
                 const notasPrecio = modoDirecto
                     ? `Costo/kg: ${costoUnitPrecio.toFixed(4)} | P.U. Venta directo: ${precioSugerido.toFixed(4)}${dto.tasaIva != null ? ` | IVA: ${(Number(dto.tasaIva) * 100).toFixed(2)}%` : ''}`
-                    : dto.formula
-                        ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
-                        : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`;
+                    : dto.componenteCompra && dto.componenteLogistica
+                        ? (() => {
+                            const ajustesTexto = [
+                                dto.ajusteFijo ? `Fijo:${dto.ajusteFijo}` : null,
+                                dto.ajustePorcentaje ? `Porcentaje:+${dto.ajustePorcentaje}%` : null
+                            ].filter(Boolean).join(' | ');
+                            return `CompraUnit:${Number(item.precioUnitarioMonedaBase ?? 0).toFixed(4)}×${dto.componenteCompra.multiplicador} | LogUnit:${((totalGastosPrecioBase * factorPrecio) / Number(item.cantidadUnidades)).toFixed(4)}×${dto.componenteLogistica.multiplicador} | Gastos:${gastosParaPrecio.length}/${gastos.length}${ajustesTexto ? ' | ' + ajustesTexto : ''}`;
+                        })()
+                        : dto.formula
+                            ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
+                            : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`;
                 let precio = await this.precioRepo.findOne({
-                    where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: constants_1.Status.ACTIVE },
+                    where: { productoId: item.productoId, clienteId, tipo: 'VENTA', estado: constants_1.Status.ACTIVE },
                 });
                 if (precio) {
                     Object.assign(precio, { precio: precioSugerido, notas: notasPrecio, transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
                 }
                 else {
                     precio = this.precioRepo.create({
-                        productoId: item.productoId, clienteId, tipo: 'LOGISTICA',
+                        productoId: item.productoId, clienteId, tipo: 'VENTA',
                         precio: precioSugerido, moneda: 'BASE', cantidadMin: 1, activo: true,
                         notas: notasPrecio, estado: constants_1.Status.ACTIVE,
                         transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioModificacion,
@@ -297,6 +329,11 @@ let OrdenesImportacionService = class OrdenesImportacionService {
                     referenciaDocumento: orden.numero,
                     notas: `Ingreso desde orden de importación ${orden.numero}`,
                 }, usuarioModificacion);
+                const precioSF = item.precioVentaSugerido ? Number(item.precioVentaSugerido) : null;
+                const precioCF = item.precioVentaConIva ? Number(item.precioVentaConIva) : null;
+                if (precioSF || precioCF) {
+                    await this.lotesSvc.actualizarPrecios(orden.clienteId, lote.id, precioSF ?? undefined, precioCF ?? undefined);
+                }
                 lotesCreados.push({ productoId: item.productoId, loteId: lote.id, cantidad: item.cantidadUnidades });
             }
         }
@@ -337,11 +374,18 @@ let OrdenesImportacionService = class OrdenesImportacionService {
             let precio = aplicarComponente(compraUnit, dto.componenteCompra)
                 + aplicarComponente(logUnit, dto.componenteLogistica)
                 + Number(dto.ajusteFijo ?? 0);
+            const ajustePorcentaje = Number(dto.ajustePorcentaje ?? 0);
+            if (ajustePorcentaje)
+                precio = precio * (1 + ajustePorcentaje / 100);
             precio = aplicarRedondeo(Math.max(0, precio), dto.redondeo);
             let precioReg = await this.precioRepo.findOne({
                 where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: constants_1.Status.ACTIVE },
             });
-            const notas = `CompraUnit:${compraUnit.toFixed(4)}×${dto.componenteCompra.multiplicador} | LogUnit:${logUnit.toFixed(4)}×${dto.componenteLogistica.multiplicador} | Gastos:${gastosActivos.length}/${gastos.length} | Ajuste:${dto.ajusteFijo ?? 0}`;
+            const ajustesTexto = [
+                dto.ajusteFijo ? `Fijo:${dto.ajusteFijo}` : null,
+                dto.ajustePorcentaje ? `Porcentaje:+${dto.ajustePorcentaje}%` : null
+            ].filter(Boolean).join(' | ');
+            const notas = `CompraUnit:${compraUnit.toFixed(4)}×${dto.componenteCompra.multiplicador} | LogUnit:${logUnit.toFixed(4)}×${dto.componenteLogistica.multiplicador} | Gastos:${gastosActivos.length}/${gastos.length}${ajustesTexto ? ' | ' + ajustesTexto : ''}`;
             if (precioReg) {
                 Object.assign(precioReg, { precio, notas, transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
             }

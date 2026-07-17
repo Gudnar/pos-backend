@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer'
-import { IsArray, IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested, IsPositive } from 'class-validator'
+import { IsArray, IsBoolean, IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, Max, ValidateNested, IsPositive } from 'class-validator'
 
 export class CreateOrdenImportacionDto {
   @IsOptional() @IsString() @MaxLength(50)
@@ -121,6 +121,9 @@ export class ProponerPreciosDto {
   @IsOptional() @IsNumber()
   ajusteFijo?: number
 
+  @IsOptional() @IsNumber() @Min(0) @Max(100)
+  ajustePorcentaje?: number
+
   @IsOptional() @ValidateNested() @Type(() => RedondeoFormulaDto)
   redondeo?: RedondeoFormulaDto
 }
@@ -139,6 +142,21 @@ export class CerrarOrdenDto {
 
   @IsOptional() @ValidateNested() @Type(() => FormulaDto)
   formula?: FormulaDto
+
+  @IsOptional() @ValidateNested() @Type(() => ComponenteFormulaDto)
+  componenteCompra?: ComponenteFormulaDto
+
+  @IsOptional() @ValidateNested() @Type(() => ComponenteFormulaDto)
+  componenteLogistica?: ComponenteFormulaDto
+
+  @IsOptional() @IsNumber()
+  ajusteFijo?: number
+
+  @IsOptional() @IsNumber() @Min(0) @Max(100)
+  ajustePorcentaje?: number
+
+  @IsOptional() @ValidateNested() @Type(() => RedondeoFormulaDto)
+  redondeo?: RedondeoFormulaDto
 
   @IsOptional() @IsArray() @IsString({ each: true })
   gastosParaPrecio?: string[]

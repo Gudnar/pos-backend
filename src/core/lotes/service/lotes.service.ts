@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource, Repository, In } from 'typeorm'
 import { Lote, EstadoLote } from '../entity/lote.entity'
 import { MovimientoStock, TipoMovimiento } from '../../movimientos-stock/entity/movimiento-stock.entity'
 import { Producto } from '../../productos/entity/producto.entity'
@@ -22,20 +22,65 @@ export class LotesService {
 
   // ── Stock resumen por sucursal ──────────────────────────────────────────────
   async stockResumen(clienteId: string, sucursalId?: string): Promise<any[]> {
-    const qb = this.loteRepo
-      .createQueryBuilder('l')
-      .select('l.producto_id', 'productoId')
-      .addSelect('l.sucursal_id', 'sucursalId')
-      .addSelect('SUM(l.cantidad_actual)', 'stockTotal')
-      .addSelect('COUNT(l.id)', 'nroLotes')
-      .addSelect('MIN(l.fecha_vencimiento)', 'proximoVencimiento')
-      .where(
-        'l.cliente_id = :clienteId AND l.estado_lote = :estadoLote AND l._estado = :dbEstado',
-        { clienteId, estadoLote: EstadoLote.ACTIVO, dbEstado: Status.ACTIVE },
-      )
-    if (sucursalId) qb.andWhere('l.sucursal_id = :sucursalId', { sucursalId })
-    qb.groupBy('l.producto_id, l.sucursal_id')
-    const rows = await qb.getRawMany()
+    // Obtener todos los lotes activos
+    const where: any = { clienteId, estadoLote: EstadoLote.ACTIVO, estado: Status.ACTIVE }
+    if (sucursalId) where.sucursalId = sucursalId
+    const lotes = await this.loteRepo.find({ where })
+
+    if (!lotes.length) return []
+
+    // Agrupar lotes por producto y sucursal
+    const stockMap = new Map<string, { productoId: string; sucursalId: string; lotes: Lote[]; proximoVencimiento: string | null }>()
+    for (const lote of lotes) {
+      const key = `${lote.productoId}|${lote.sucursalId}`
+      if (!stockMap.has(key)) {
+        stockMap.set(key, {
+          productoId: lote.productoId,
+          sucursalId: lote.sucursalId,
+          lotes: [],
+          proximoVencimiento: null,
+        })
+      }
+      const entry = stockMap.get(key)!
+      entry.lotes.push(lote)
+      if (!entry.proximoVencimiento || (lote.fechaVencimiento && lote.fechaVencimiento < entry.proximoVencimiento)) {
+        entry.proximoVencimiento = lote.fechaVencimiento || null
+      }
+    }
+
+    // Para cada grupo de lotes, calcular stock considerando todos los movimientos
+    const loteIds = lotes.map(l => l.id)
+    let movimientos: MovimientoStock[] = []
+    if (loteIds.length > 0) {
+      movimientos = await this.movRepo.find({
+        where: { clienteId, loteId: In(loteIds), estado: Status.ACTIVE },
+        order: { fechaCreacion: 'ASC' },
+      })
+    }
+
+    const rows: any[] = []
+    for (const [key, entry] of stockMap.entries()) {
+      let stockTotal = 0
+      for (const lote of entry.lotes) {
+        // Para cada lote, obtener el último movimiento registrado
+        const movimientosDelLote = movimientos.filter(m => m.loteId === lote.id)
+        if (movimientosDelLote.length > 0) {
+          // El último movimiento tiene el cantidadPosterior actualizado
+          const ultimoMovimiento = movimientosDelLote[movimientosDelLote.length - 1]
+          stockTotal += Number(ultimoMovimiento.cantidadPosterior)
+        } else {
+          // Si no hay movimientos posteriores, usar cantidad_actual del lote
+          stockTotal += Number(lote.cantidadActual)
+        }
+      }
+      rows.push({
+        productoId: entry.productoId,
+        sucursalId: entry.sucursalId,
+        stockTotal,
+        nroLotes: entry.lotes.length,
+        proximoVencimiento: entry.proximoVencimiento,
+      })
+    }
 
     if (!rows.length) return []
 
@@ -100,6 +145,22 @@ export class LotesService {
     const l = await this.loteRepo.findOne({ where: { id, clienteId, estado: Status.ACTIVE } })
     if (!l) throw new NotFoundException(Messages.NOT_FOUND)
     return l
+  }
+
+  // ── Movimientos de un lote ───────────────────────────────────────────────────
+  async obtenerMovimientos(loteId: string): Promise<MovimientoStock[]> {
+    return this.movRepo.find({
+      where: { loteId, estado: Status.ACTIVE },
+      order: { fechaCreacion: 'ASC' },
+    })
+  }
+
+  // ── Actualizar precios de un lote ────────────────────────────────────────────
+  async actualizarPrecios(clienteId: string, id: string, precioVentaSF?: number, precioVentaCF?: number): Promise<Lote> {
+    const lote = await this.obtener(clienteId, id)
+    if (precioVentaSF) lote.precioVentaSF = precioVentaSF
+    if (precioVentaCF) lote.precioVentaCF = precioVentaCF
+    return this.loteRepo.save(lote)
   }
 
   // ── Trazabilidad completa: lote + movimientos ──────────────────────────────

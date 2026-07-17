@@ -118,6 +118,14 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'notas', type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Lote.prototype, "notas", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'precio_venta_sf', type: 'decimal', precision: 14, scale: 4, nullable: true }),
+    __metadata("design:type", Number)
+], Lote.prototype, "precioVentaSF", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'precio_venta_cf', type: 'decimal', precision: 14, scale: 4, nullable: true }),
+    __metadata("design:type", Number)
+], Lote.prototype, "precioVentaCF", void 0);
 Lote = __decorate([
     (0, typeorm_1.Entity)({ name: 'lote', schema: process.env.DB_SCHEMA || 'public' }),
     __metadata("design:paramtypes", [Object])

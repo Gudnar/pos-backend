@@ -17,11 +17,8 @@ export declare class VentasService {
     private readonly ingresosService;
     private readonly dataSource;
     constructor(ventaRepo: Repository<Venta>, detalleRepo: Repository<DetalleVenta>, loteRepo: Repository<Lote>, movRepo: Repository<MovimientoStock>, productoRepo: Repository<Producto>, sesionRepo: Repository<CajaSesion>, ingresosService: IngresosService, dataSource: DataSource);
-    listar(clienteId: string, sucursalId?: string, fecha?: string, estadoVenta?: string): Promise<Venta[]>;
-    obtener(clienteId: string, id: string): Promise<{
-        venta: Venta;
-        detalles: DetalleVenta[];
-    }>;
+    listar(clienteId: string, sucursalId?: string, fechaDesde?: string, fechaHasta?: string, estadoVenta?: string, nombreCliente?: string, conSaldo?: boolean): Promise<Venta[]>;
+    obtener(clienteId: string, id: string): Promise<any>;
     crear(clienteId: string, dto: CrearVentaDto, usuarioId: string): Promise<Venta>;
     anular(clienteId: string, id: string, dto: AnularVentaDto, usuarioModificacion: string): Promise<Venta>;
     private _ordenPicking;

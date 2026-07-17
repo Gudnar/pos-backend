@@ -249,6 +249,21 @@ export class OrdenesImportacionService {
           item.utilidadTonelada = (pvManual - Number(item.costoTotalUnitario)) * 1000
           item.utilidadToneladaConIva = (item.precioVentaConIva - Number(item.costoTotalUnitario)) * 1000
         }
+      } else if (dto.componenteCompra && dto.componenteLogistica) {
+        // ── MODO FÓRMULA LOGÍSTICA SIMPLIFICADA ──────────────────────────
+        const aplicarComponente = (base: number, comp: any) =>
+          base * Number(comp.multiplicador) + Number(comp.sumarFijo ?? 0)
+        const logUnit = Number(item.cantidadUnidades) > 0
+          ? (totalGastosPrecioBase * factorPrecio) / Number(item.cantidadUnidades)
+          : 0
+        const compraUnit = Number(item.precioUnitarioMonedaBase ?? 0)
+        precioSugerido = aplicarComponente(compraUnit, dto.componenteCompra)
+                       + aplicarComponente(logUnit, dto.componenteLogistica)
+                       + Number(dto.ajusteFijo ?? 0)
+        const ajustePorcentaje = Number(dto.ajustePorcentaje ?? 0)
+        if (ajustePorcentaje) precioSugerido = precioSugerido * (1 + ajustePorcentaje / 100)
+        precioSugerido = aplicarRedondeo(Math.max(0, precioSugerido), dto.redondeo)
+        margen = costoUnitPrecio > 0 ? ((precioSugerido / costoUnitPrecio) - 1) * 100 : 0
       } else if (dto.formula) {
         // ── MODO FÓRMULA ─────────────────────────────────────────────────
         const baseVal = dto.formula.base === 'costoProducto'
@@ -264,6 +279,18 @@ export class OrdenesImportacionService {
 
       item.margenAplicado = margen
       item.precioVentaSugerido = precioSugerido
+
+      // Calcular precio con IVA (en todos los modos)
+      if (dto.tasaIva != null) {
+        const iva = Number(dto.tasaIva)
+        item.precioVentaConIva = precioSugerido * (1 + iva)
+        item.utilidadTonelada = (precioSugerido - Number(item.costoTotalUnitario)) * 1000
+        item.utilidadToneladaConIva = (item.precioVentaConIva - Number(item.costoTotalUnitario)) * 1000
+      } else if (!modoDirecto || !precioManualMap.has(item.id)) {
+        // Para otros modos sin IVA, al menos calcular utilidades sin IVA
+        item.utilidadTonelada = (precioSugerido - Number(item.costoTotalUnitario)) * 1000
+      }
+
       Object.assign(item, { transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
 
       // Guardar en catálogo de precios (solo ítems vinculados al catálogo)
@@ -276,18 +303,26 @@ export class OrdenesImportacionService {
           : ''
         const notasPrecio = modoDirecto
           ? `Costo/kg: ${costoUnitPrecio.toFixed(4)} | P.U. Venta directo: ${precioSugerido.toFixed(4)}${dto.tasaIva != null ? ` | IVA: ${(Number(dto.tasaIva) * 100).toFixed(2)}%` : ''}`
+          : dto.componenteCompra && dto.componenteLogistica
+          ? (() => {
+              const ajustesTexto = [
+                dto.ajusteFijo ? `Fijo:${dto.ajusteFijo}` : null,
+                dto.ajustePorcentaje ? `Porcentaje:+${dto.ajustePorcentaje}%` : null
+              ].filter(Boolean).join(' | ')
+              return `CompraUnit:${Number(item.precioUnitarioMonedaBase ?? 0).toFixed(4)}×${dto.componenteCompra.multiplicador} | LogUnit:${((totalGastosPrecioBase * factorPrecio) / Number(item.cantidadUnidades)).toFixed(4)}×${dto.componenteLogistica.multiplicador} | Gastos:${gastosParaPrecio.length}/${(gastos as GastoLogistica[]).length}${ajustesTexto ? ' | ' + ajustesTexto : ''}`
+            })()
           : dto.formula
           ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
           : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`
 
         let precio = await this.precioRepo.findOne({
-          where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: Status.ACTIVE },
+          where: { productoId: item.productoId, clienteId, tipo: 'VENTA', estado: Status.ACTIVE },
         })
         if (precio) {
           Object.assign(precio, { precio: precioSugerido, notas: notasPrecio, transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
         } else {
           precio = this.precioRepo.create({
-            productoId: item.productoId, clienteId, tipo: 'LOGISTICA',
+            productoId: item.productoId, clienteId, tipo: 'VENTA',
             precio: precioSugerido, moneda: 'BASE', cantidadMin: 1, activo: true,
             notas: notasPrecio, estado: Status.ACTIVE,
             transaccion: Transacccion.CREAR, usuarioCreacion: usuarioModificacion,
@@ -331,6 +366,14 @@ export class OrdenesImportacionService {
           },
           usuarioModificacion,
         )
+
+        // Asignar precios de venta al lote
+        const precioSF = item.precioVentaSugerido ? Number(item.precioVentaSugerido) : null
+        const precioCF = item.precioVentaConIva ? Number(item.precioVentaConIva) : null
+        if (precioSF || precioCF) {
+          await this.lotesSvc.actualizarPrecios(orden.clienteId, lote.id, precioSF ?? undefined, precioCF ?? undefined)
+        }
+
         lotesCreados.push({ productoId: item.productoId, loteId: lote.id, cantidad: item.cantidadUnidades })
       }
     }
@@ -386,13 +429,19 @@ export class OrdenesImportacionService {
       let precio = aplicarComponente(compraUnit, dto.componenteCompra)
                + aplicarComponente(logUnit, dto.componenteLogistica)
                + Number(dto.ajusteFijo ?? 0)
+      const ajustePorcentaje = Number(dto.ajustePorcentaje ?? 0)
+      if (ajustePorcentaje) precio = precio * (1 + ajustePorcentaje / 100)
       precio = aplicarRedondeo(Math.max(0, precio), dto.redondeo)
 
       // Guardar precio LOGISTICA en catálogo
       let precioReg = await this.precioRepo.findOne({
         where: { productoId: item.productoId, clienteId, tipo: 'LOGISTICA', estado: Status.ACTIVE },
       })
-      const notas = `CompraUnit:${compraUnit.toFixed(4)}×${dto.componenteCompra.multiplicador} | LogUnit:${logUnit.toFixed(4)}×${dto.componenteLogistica.multiplicador} | Gastos:${gastosActivos.length}/${gastos.length} | Ajuste:${dto.ajusteFijo ?? 0}`
+      const ajustesTexto = [
+        dto.ajusteFijo ? `Fijo:${dto.ajusteFijo}` : null,
+        dto.ajustePorcentaje ? `Porcentaje:+${dto.ajustePorcentaje}%` : null
+      ].filter(Boolean).join(' | ')
+      const notas = `CompraUnit:${compraUnit.toFixed(4)}×${dto.componenteCompra.multiplicador} | LogUnit:${logUnit.toFixed(4)}×${dto.componenteLogistica.multiplicador} | Gastos:${gastosActivos.length}/${gastos.length}${ajustesTexto ? ' | ' + ajustesTexto : ''}`
       if (precioReg) {
         Object.assign(precioReg, { precio, notas, transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
       } else {

@@ -30,5 +30,7 @@ export declare class Lote extends AuditoriaEntity {
     estadoLote: string;
     motivoCuarentena?: string;
     notas?: string;
+    precioVentaSF?: number;
+    precioVentaCF?: number;
     constructor(data?: Partial<Lote>);
 }

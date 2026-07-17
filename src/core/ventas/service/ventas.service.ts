@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource, Repository, In, Like, Not } from 'typeorm'
 import { Venta, EstadoVenta } from '../entity/venta.entity'
 import { DetalleVenta } from '../entity/detalle-venta.entity'
 import { Lote, EstadoLote } from '../../lotes/entity/lote.entity'
@@ -24,19 +24,65 @@ export class VentasService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async listar(clienteId: string, sucursalId?: string, fecha?: string, estadoVenta?: string): Promise<Venta[]> {
-    const where: any = { clienteId, estado: Status.ACTIVE }
-    if (sucursalId) where.sucursalId = sucursalId
-    if (fecha) where.fecha = fecha
-    if (estadoVenta) where.estadoVenta = estadoVenta
-    return this.ventaRepo.find({ where, order: { fechaCreacion: 'DESC' }, take: 200 })
+  async listar(
+    clienteId: string,
+    sucursalId?: string,
+    fechaDesde?: string,
+    fechaHasta?: string,
+    estadoVenta?: string,
+    nombreCliente?: string,
+    conSaldo?: boolean,
+  ): Promise<Venta[]> {
+    let qb = this.ventaRepo.createQueryBuilder('v')
+      .where('v.clienteId = :clienteId', { clienteId })
+      .andWhere('v.estado = :est', { est: Status.ACTIVE })
+      .orderBy('v.fechaCreacion', 'DESC')
+      .take(500)
+
+    if (sucursalId) qb = qb.andWhere('v.sucursalId = :sucursalId', { sucursalId })
+    if (estadoVenta) qb = qb.andWhere('v.estadoVenta = :estadoVenta', { estadoVenta })
+
+    // Filtro de rango de fechas
+    if (fechaDesde) qb = qb.andWhere('v.fecha >= :fechaDesde', { fechaDesde })
+    if (fechaHasta) qb = qb.andWhere('v.fecha <= :fechaHasta', { fechaHasta })
+
+    // Filtro de nombre de cliente
+    if (nombreCliente) qb = qb.andWhere('v.nombreCliente ILIKE :nombreCliente', { nombreCliente: `%${nombreCliente}%` })
+
+    // Filtro de saldo pendiente
+    if (conSaldo !== undefined) {
+      if (conSaldo) {
+        // Saldos pendientes: COALESCE(v.total, 0) > COALESCE(v.montoPagado, 0)
+        qb = qb.andWhere('COALESCE(v.total, 0) > COALESCE(v.montoPagado, 0)')
+      } else {
+        // Sin saldo: COALESCE(v.total, 0) <= COALESCE(v.montoPagado, 0)
+        qb = qb.andWhere('COALESCE(v.total, 0) <= COALESCE(v.montoPagado, 0)')
+      }
+    }
+
+    return qb.getMany()
   }
 
-  async obtener(clienteId: string, id: string): Promise<{ venta: Venta; detalles: DetalleVenta[] }> {
+  async obtener(clienteId: string, id: string): Promise<any> {
     const venta = await this.ventaRepo.findOne({ where: { id, clienteId, estado: Status.ACTIVE } })
     if (!venta) throw new NotFoundException('Venta no encontrada')
     const detalles = await this.detalleRepo.find({ where: { ventaId: id, clienteId, estado: Status.ACTIVE } })
-    return { venta, detalles }
+
+    // Obtener porcentajeFactura de productos
+    const productoIds = [...new Set(detalles.map(d => d.productoId))]
+    const productos = productoIds.length > 0
+      ? await this.productoRepo.find({ where: { id: In(productoIds) } })
+      : []
+    const prodMap = new Map(productos.map(p => [p.id, p]))
+
+    // Agregar porcentajeFactura a detalles
+    return {
+      venta,
+      detalles: detalles.map(d => ({
+        ...d,
+        porcentajeFactura: prodMap.get(d.productoId)?.porcentajeFactura || 0,
+      })),
+    }
   }
 
   async crear(clienteId: string, dto: CrearVentaDto, usuarioId: string): Promise<Venta> {

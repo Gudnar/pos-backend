@@ -29,18 +29,58 @@ let LotesService = class LotesService {
         this.ds = ds;
     }
     async stockResumen(clienteId, sucursalId) {
-        const qb = this.loteRepo
-            .createQueryBuilder('l')
-            .select('l.producto_id', 'productoId')
-            .addSelect('l.sucursal_id', 'sucursalId')
-            .addSelect('SUM(l.cantidad_actual)', 'stockTotal')
-            .addSelect('COUNT(l.id)', 'nroLotes')
-            .addSelect('MIN(l.fecha_vencimiento)', 'proximoVencimiento')
-            .where('l.cliente_id = :clienteId AND l.estado_lote = :estadoLote AND l._estado = :dbEstado', { clienteId, estadoLote: lote_entity_1.EstadoLote.ACTIVO, dbEstado: constants_1.Status.ACTIVE });
+        const where = { clienteId, estadoLote: lote_entity_1.EstadoLote.ACTIVO, estado: constants_1.Status.ACTIVE };
         if (sucursalId)
-            qb.andWhere('l.sucursal_id = :sucursalId', { sucursalId });
-        qb.groupBy('l.producto_id, l.sucursal_id');
-        const rows = await qb.getRawMany();
+            where.sucursalId = sucursalId;
+        const lotes = await this.loteRepo.find({ where });
+        if (!lotes.length)
+            return [];
+        const stockMap = new Map();
+        for (const lote of lotes) {
+            const key = `${lote.productoId}|${lote.sucursalId}`;
+            if (!stockMap.has(key)) {
+                stockMap.set(key, {
+                    productoId: lote.productoId,
+                    sucursalId: lote.sucursalId,
+                    lotes: [],
+                    proximoVencimiento: null,
+                });
+            }
+            const entry = stockMap.get(key);
+            entry.lotes.push(lote);
+            if (!entry.proximoVencimiento || (lote.fechaVencimiento && lote.fechaVencimiento < entry.proximoVencimiento)) {
+                entry.proximoVencimiento = lote.fechaVencimiento || null;
+            }
+        }
+        const loteIds = lotes.map(l => l.id);
+        let movimientos = [];
+        if (loteIds.length > 0) {
+            movimientos = await this.movRepo.find({
+                where: { clienteId, loteId: (0, typeorm_2.In)(loteIds), estado: constants_1.Status.ACTIVE },
+                order: { fechaCreacion: 'ASC' },
+            });
+        }
+        const rows = [];
+        for (const [key, entry] of stockMap.entries()) {
+            let stockTotal = 0;
+            for (const lote of entry.lotes) {
+                const movimientosDelLote = movimientos.filter(m => m.loteId === lote.id);
+                if (movimientosDelLote.length > 0) {
+                    const ultimoMovimiento = movimientosDelLote[movimientosDelLote.length - 1];
+                    stockTotal += Number(ultimoMovimiento.cantidadPosterior);
+                }
+                else {
+                    stockTotal += Number(lote.cantidadActual);
+                }
+            }
+            rows.push({
+                productoId: entry.productoId,
+                sucursalId: entry.sucursalId,
+                stockTotal,
+                nroLotes: entry.lotes.length,
+                proximoVencimiento: entry.proximoVencimiento,
+            });
+        }
         if (!rows.length)
             return [];
         const productoIds = rows.map(r => r.productoId);
@@ -92,6 +132,20 @@ let LotesService = class LotesService {
         if (!l)
             throw new common_1.NotFoundException(response_messages_1.Messages.NOT_FOUND);
         return l;
+    }
+    async obtenerMovimientos(loteId) {
+        return this.movRepo.find({
+            where: { loteId, estado: constants_1.Status.ACTIVE },
+            order: { fechaCreacion: 'ASC' },
+        });
+    }
+    async actualizarPrecios(clienteId, id, precioVentaSF, precioVentaCF) {
+        const lote = await this.obtener(clienteId, id);
+        if (precioVentaSF)
+            lote.precioVentaSF = precioVentaSF;
+        if (precioVentaCF)
+            lote.precioVentaCF = precioVentaCF;
+        return this.loteRepo.save(lote);
     }
     async trazabilidad(clienteId, id) {
         const lote = await this.obtener(clienteId, id);

@@ -35,22 +35,49 @@ let VentasService = class VentasService {
         this.ingresosService = ingresosService;
         this.dataSource = dataSource;
     }
-    async listar(clienteId, sucursalId, fecha, estadoVenta) {
-        const where = { clienteId, estado: constants_1.Status.ACTIVE };
+    async listar(clienteId, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldo) {
+        let qb = this.ventaRepo.createQueryBuilder('v')
+            .where('v.clienteId = :clienteId', { clienteId })
+            .andWhere('v.estado = :est', { est: constants_1.Status.ACTIVE })
+            .orderBy('v.fechaCreacion', 'DESC')
+            .take(500);
         if (sucursalId)
-            where.sucursalId = sucursalId;
-        if (fecha)
-            where.fecha = fecha;
+            qb = qb.andWhere('v.sucursalId = :sucursalId', { sucursalId });
         if (estadoVenta)
-            where.estadoVenta = estadoVenta;
-        return this.ventaRepo.find({ where, order: { fechaCreacion: 'DESC' }, take: 200 });
+            qb = qb.andWhere('v.estadoVenta = :estadoVenta', { estadoVenta });
+        if (fechaDesde)
+            qb = qb.andWhere('v.fecha >= :fechaDesde', { fechaDesde });
+        if (fechaHasta)
+            qb = qb.andWhere('v.fecha <= :fechaHasta', { fechaHasta });
+        if (nombreCliente)
+            qb = qb.andWhere('v.nombreCliente ILIKE :nombreCliente', { nombreCliente: `%${nombreCliente}%` });
+        if (conSaldo !== undefined) {
+            if (conSaldo) {
+                qb = qb.andWhere('COALESCE(v.total, 0) > COALESCE(v.montoPagado, 0)');
+            }
+            else {
+                qb = qb.andWhere('COALESCE(v.total, 0) <= COALESCE(v.montoPagado, 0)');
+            }
+        }
+        return qb.getMany();
     }
     async obtener(clienteId, id) {
         const venta = await this.ventaRepo.findOne({ where: { id, clienteId, estado: constants_1.Status.ACTIVE } });
         if (!venta)
             throw new common_1.NotFoundException('Venta no encontrada');
         const detalles = await this.detalleRepo.find({ where: { ventaId: id, clienteId, estado: constants_1.Status.ACTIVE } });
-        return { venta, detalles };
+        const productoIds = [...new Set(detalles.map(d => d.productoId))];
+        const productos = productoIds.length > 0
+            ? await this.productoRepo.find({ where: { id: (0, typeorm_2.In)(productoIds) } })
+            : [];
+        const prodMap = new Map(productos.map(p => [p.id, p]));
+        return {
+            venta,
+            detalles: detalles.map(d => ({
+                ...d,
+                porcentajeFactura: prodMap.get(d.productoId)?.porcentajeFactura || 0,
+            })),
+        };
     }
     async crear(clienteId, dto, usuarioId) {
         return this.dataSource.transaction(async (manager) => {

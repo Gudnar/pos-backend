@@ -806,24 +806,36 @@ let ComprasService = class ComprasService {
         const montoEnBs = Number(dto.monto) * tc;
         const compraMoneda = (compra.moneda || 'BOB').toUpperCase();
         const esDivisa = !['BS', 'BOB', 'BOL'].includes(compraMoneda);
-        if (esDivisa && dto.monedaId) {
-            const pagosPrevios = await this.pagoRepo.find({ where: { compraId, clienteId, estado: constants_1.Status.ACTIVE } });
+        const totalCompraEnBs = Number(compra.total) * Number(compra.tipoCambio || 1);
+        const pagosPrevios = await this.pagoRepo.find({ where: { compraId, clienteId, estado: constants_1.Status.ACTIVE } });
+        const totalPagadoEnBs = pagosPrevios.reduce((acc, p) => acc + Number(p.montoEnBs || 0), 0);
+        const nuevoTotalPagadoEnBs = totalPagadoEnBs + montoEnBs;
+        const saldoEnBs = totalCompraEnBs - totalPagadoEnBs;
+        if (nuevoTotalPagadoEnBs > totalCompraEnBs + 0.01) {
+            throw new common_1.BadRequestException(`El pago excede el saldo. Total compra: Bs ${totalCompraEnBs.toFixed(2)}, ` +
+                `Ya pagado: Bs ${totalPagadoEnBs.toFixed(2)}, ` +
+                `Pendiente: Bs ${saldoEnBs.toFixed(2)}, ` +
+                `Intenta pagar: Bs ${montoEnBs.toFixed(2)}`);
+        }
+        if (esDivisa) {
+            const totalCompraEnDivisa = Number(compra.total);
             const pagadoEnDivisa = pagosPrevios
                 .filter(p => p.monedaId)
                 .reduce((acc, p) => acc + Number(p.monto), 0)
                 + pagosPrevios
                     .filter(p => !p.monedaId)
                     .reduce((acc, p) => acc + Number(p.montoEnBs) / Number(compra.tipoCambio || 1), 0);
-            const saldoEnDivisa = Number(compra.total) - pagadoEnDivisa;
-            if (Number(dto.monto) > saldoEnDivisa + 0.001) {
-                throw new common_1.BadRequestException(`El monto (${dto.monto} ${compra.moneda}) supera el saldo pendiente (${saldoEnDivisa.toFixed(4)} ${compra.moneda})`);
+            const saldoEnDivisa = totalCompraEnDivisa - pagadoEnDivisa;
+            if (dto.monedaId) {
+                if (Number(dto.monto) > saldoEnDivisa + 0.001) {
+                    throw new common_1.BadRequestException(`El monto (${dto.monto} ${compra.moneda}) supera el saldo pendiente (${saldoEnDivisa.toFixed(4)} ${compra.moneda})`);
+                }
             }
-        }
-        else {
-            const totalEnBs = Number(compra.total) * Number(compra.tipoCambio || 1);
-            const saldo = totalEnBs - Number(compra.montoPagado);
-            if (montoEnBs > saldo + 0.01) {
-                throw new common_1.BadRequestException(`El monto en Bs (${montoEnBs.toFixed(2)}) supera el saldo pendiente (${saldo.toFixed(2)})`);
+            else {
+                const saldoEnBs = saldoEnDivisa * Number(compra.tipoCambio || 1);
+                if (montoEnBs > saldoEnBs + 0.01) {
+                    throw new common_1.BadRequestException(`Compra en ${compra.moneda} pero pago en Bs. El monto (Bs ${montoEnBs.toFixed(2)}) supera el saldo (Bs ${saldoEnBs.toFixed(2)})`);
+                }
             }
         }
         const pago = await this.pagoRepo.save(this.pagoRepo.create({

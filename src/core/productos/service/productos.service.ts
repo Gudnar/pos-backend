@@ -73,25 +73,40 @@ export class ProductosService {
 
     const ids = productos.map(p => p.id)
 
-    // ── Precios — todos los tiers activos VENTA ordenados por cantidadMin ────
+    // ── Precios — todos los tiers activos (VENTA o LOGISTICA) ordenados por cantidadMin ────
     const precios = await this.precioRepo
       .createQueryBuilder('pp')
       .where('pp.cliente_id = :clienteId AND pp.producto_id IN (:...ids) AND pp.activo = true AND pp._estado = :est', {
         clienteId, ids, est: Status.ACTIVE,
       })
-      .andWhere("pp.tipo = 'VENTA'")
-      .orderBy('pp.cantidad_min', 'ASC')
+      .andWhere("pp.tipo IN ('VENTA', 'LOGISTICA')")
+      .orderBy('pp.tipo', 'ASC')
+      .addOrderBy('pp.cantidad_min', 'ASC')
       .getMany()
 
-    // Agrupar todos los tiers por productoId
-    const tiersMap = new Map<string, { cantidadMin: number; cantidadMax: number | null; precio: number }[]>()
+    // Agrupar todos los tiers por productoId (priorizar VENTA sobre LOGISTICA)
+    const tiersMap = new Map<string, { cantidadMin: number; cantidadMax: number | null; precio: number; tipo: string }[]>()
     for (const pr of precios) {
       if (!tiersMap.has(pr.productoId)) tiersMap.set(pr.productoId, [])
-      tiersMap.get(pr.productoId)!.push({
-        cantidadMin: pr.cantidadMin,
-        cantidadMax: pr.cantidadMax ?? null,
-        precio: Number(pr.precio),
-      })
+      // Si ya existe un precio VENTA para este producto, no agregar LOGISTICA
+      const tiersDelProducto = tiersMap.get(pr.productoId)!
+      const tieneVENTA = tiersDelProducto.some(t => t.tipo === 'VENTA')
+      if (pr.tipo === 'VENTA' || !tieneVENTA) {
+        tiersDelProducto.push({
+          cantidadMin: pr.cantidadMin,
+          cantidadMax: pr.cantidadMax ?? null,
+          precio: Number(pr.precio),
+          tipo: pr.tipo,
+        })
+      }
+    }
+
+    // Limpiar duplicados y mantener solo VENTA si existen ambos tipos
+    for (const [key, tiers] of tiersMap.entries()) {
+      const ventaTiers = tiers.filter(t => t.tipo === 'VENTA')
+      if (ventaTiers.length > 0) {
+        tiersMap.set(key, ventaTiers)
+      }
     }
 
     // ── Subcategorías y Categorías ───────────────────────────────────────────
@@ -110,7 +125,9 @@ export class ProductosService {
     return productos.map(p => {
       const subcat = subcatMap.get(p.subcategoriaId)
       const cat = subcat ? catMap.get(subcat.categoriaId) : undefined
-      const tiersSF = tiersMap.get(p.id) ?? []
+      const tiersConTipo = tiersMap.get(p.id) ?? []
+      // Limpiar el tipo antes de enviar al frontend
+      const tiersSF = tiersConTipo.map(({ tipo, ...t }) => t)
       const pctFactura = Number(p.porcentajeFactura || 0)
       const tiersCF = pctFactura > 0
         ? tiersSF.map(t => ({ ...t, precio: Number((t.precio * (1 + pctFactura / 100)).toFixed(2)) }))

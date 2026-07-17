@@ -12,6 +12,8 @@ export declare class LotesService {
     stockResumen(clienteId: string, sucursalId?: string): Promise<any[]>;
     listarPorProducto(clienteId: string, sucursalId: string | undefined, productoId: string): Promise<Lote[]>;
     obtener(clienteId: string, id: string): Promise<Lote>;
+    obtenerMovimientos(loteId: string): Promise<MovimientoStock[]>;
+    actualizarPrecios(clienteId: string, id: string, precioVentaSF?: number, precioVentaCF?: number): Promise<Lote>;
     trazabilidad(clienteId: string, id: string): Promise<any>;
     ingresar(clienteId: string, dto: IngresoLoteDto, usuarioId: string): Promise<Lote>;
     cambiarEstado(clienteId: string, id: string, dto: CambiarEstadoLoteDto, usuarioModificacion: string): Promise<Lote>;

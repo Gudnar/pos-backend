@@ -85,6 +85,13 @@ export class Lote extends AuditoriaEntity {
   @Column({ name: 'notas', type: 'text', nullable: true })
   notas?: string
 
+  // ── Precios específicos del lote ──────────────────
+  @Column({ name: 'precio_venta_sf', type: 'decimal', precision: 14, scale: 4, nullable: true })
+  precioVentaSF?: number
+
+  @Column({ name: 'precio_venta_cf', type: 'decimal', precision: 14, scale: 4, nullable: true })
+  precioVentaCF?: number
+
   constructor(data?: Partial<Lote>) {
     super(data)
     if (data) Object.assign(this, data)

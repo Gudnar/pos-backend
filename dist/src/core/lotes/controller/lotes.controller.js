@@ -48,12 +48,32 @@ let LotesController = class LotesController {
         const datos = await this.svc.proximosAVencer(req.user.clienteId, sucursalId);
         return { finalizado: true, mensaje: 'OK', datos };
     }
-    async obtener(req, id) {
-        const datos = await this.svc.obtener(req.user.clienteId, id);
+    async listarPorProductoRoute(req, productoId, sucursalId) {
+        const datos = await this.svc.listarPorProducto(req.user.clienteId, sucursalId, productoId);
         return { finalizado: true, mensaje: 'OK', datos };
+    }
+    async obtenerStock(req, id) {
+        const lote = await this.svc.obtener(req.user.clienteId, id);
+        const movimientos = await this.svc.obtenerMovimientos(id);
+        const stock = movimientos.length > 0 ? movimientos[movimientos.length - 1].cantidadPosterior : 0;
+        return {
+            finalizado: true,
+            mensaje: 'OK',
+            datos: {
+                id,
+                stock,
+                nroLote: lote.nroLote,
+                precioVentaSF: lote.precioVentaSF,
+                precioVentaCF: lote.precioVentaCF,
+            },
+        };
     }
     async trazabilidad(req, id) {
         const datos = await this.svc.trazabilidad(req.user.clienteId, id);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
+    async obtener(req, id) {
+        const datos = await this.svc.obtener(req.user.clienteId, id);
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async ingresar(req, dto) {
@@ -117,13 +137,22 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], LotesController.prototype, "proximosAVencer", null);
 __decorate([
-    (0, common_1.Get)(':id'),
+    (0, common_1.Get)('producto/:productoId'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('productoId')),
+    __param(2, (0, common_1.Query)('sucursalId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], LotesController.prototype, "listarPorProductoRoute", null);
+__decorate([
+    (0, common_1.Get)(':id/stock'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
-], LotesController.prototype, "obtener", null);
+], LotesController.prototype, "obtenerStock", null);
 __decorate([
     (0, common_1.Get)(':id/trazabilidad'),
     __param(0, (0, common_1.Req)()),
@@ -132,6 +161,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], LotesController.prototype, "trazabilidad", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], LotesController.prototype, "obtener", null);
 __decorate([
     (0, common_1.Post)('ingresar'),
     (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO'),

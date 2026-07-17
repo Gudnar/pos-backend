@@ -48,6 +48,7 @@ export declare class ProponerPreciosDto {
     componenteCompra: ComponenteFormulaDto;
     componenteLogistica: ComponenteFormulaDto;
     ajusteFijo?: number;
+    ajustePorcentaje?: number;
     redondeo?: RedondeoFormulaDto;
 }
 export declare class PrecioVentaManualItemDto {
@@ -57,6 +58,11 @@ export declare class PrecioVentaManualItemDto {
 export declare class CerrarOrdenDto {
     margenPorcentaje?: number;
     formula?: FormulaDto;
+    componenteCompra?: ComponenteFormulaDto;
+    componenteLogistica?: ComponenteFormulaDto;
+    ajusteFijo?: number;
+    ajustePorcentaje?: number;
+    redondeo?: RedondeoFormulaDto;
     gastosParaPrecio?: string[];
     tiposCambioOverride?: GastoOverrideDto[];
     ingresarInventario?: boolean;

@@ -24,8 +24,9 @@ let VentasController = class VentasController {
     constructor(svc) {
         this.svc = svc;
     }
-    async listar(req, sucursalId, fecha, estadoVenta) {
-        const datos = await this.svc.listar(req.user.clienteId, sucursalId, fecha, estadoVenta);
+    async listar(req, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldo) {
+        const conSaldoBool = conSaldo === 'true' ? true : conSaldo === 'false' ? false : undefined;
+        const datos = await this.svc.listar(req.user.clienteId, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldoBool);
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async obtener(req, id) {
@@ -45,10 +46,13 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Query)('sucursalId')),
-    __param(2, (0, common_1.Query)('fecha')),
-    __param(3, (0, common_1.Query)('estadoVenta')),
+    __param(2, (0, common_1.Query)('fechaDesde')),
+    __param(3, (0, common_1.Query)('fechaHasta')),
+    __param(4, (0, common_1.Query)('estadoVenta')),
+    __param(5, (0, common_1.Query)('nombreCliente')),
+    __param(6, (0, common_1.Query)('conSaldo')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], VentasController.prototype, "listar", null);
 __decorate([

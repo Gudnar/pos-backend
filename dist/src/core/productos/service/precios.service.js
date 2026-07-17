@@ -52,7 +52,16 @@ let PreciosService = class PreciosService {
                 notas: tiers[0].notas,
                 tiers: tiers.map(t => ({ id: t.id, cantidadMin: t.cantidadMin, cantidadMax: t.cantidadMax, precio: t.precio })),
             })),
-            historico,
+            historico: historico.map(p => ({
+                id: p.id,
+                tipo: p.tipo,
+                cantidadMin: p.cantidadMin,
+                cantidadMax: p.cantidadMax,
+                precio: p.precio,
+                moneda: p.moneda,
+                fechaVigencia: p.fechaVigencia,
+                fechaFin: p.fechaFin,
+            })),
         };
     }
     async agregarEscalaPrecio(clienteId, productoId, dto, usuarioCreacion) {

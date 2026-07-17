@@ -20,17 +20,25 @@ export class PagosProveedorService {
 
   private async validarLimite(clienteId: string, ordenId: string, nuevoMontoBase: number, excluirId?: string): Promise<void> {
     const orden = await this.ordenRepo.findOne({ where: { id: ordenId, clienteId } })
-    if (!orden?.totalProductosMonedaBase) return
+    if (!orden) throw new NotFoundException('Orden no encontrada')
+
+    // Monto total adeudado = productos + gastos logísticos
+    const totalProductos = Number(orden.totalProductosMonedaBase ?? 0)
+    const totalGastos = Number(orden.totalGastosMonedaBase ?? 0)
+    const montoTotal = totalProductos + totalGastos
+
+    if (montoTotal === 0) return
+
     const pagos = await this.repo.find({ where: { ordenImportacionId: ordenId, clienteId, estado: Status.ACTIVE } })
     const totalExistente = pagos
       .filter(p => p.id !== excluirId)
       .reduce((s, p) => s + Number(p.monto) * Number(p.tipoCambio), 0)
     const nuevoTotal = totalExistente + nuevoMontoBase
-    const limite = Number(orden.totalProductosMonedaBase)
-    if (nuevoTotal > limite + 0.01) {
-      const pendiente = Math.max(0, limite - totalExistente)
+
+    if (nuevoTotal > montoTotal + 0.01) {
+      const pendiente = Math.max(0, montoTotal - totalExistente)
       throw new BadRequestException(
-        `El pago excede el monto pendiente. Pendiente: ${pendiente.toFixed(2)} — Este pago: ${nuevoMontoBase.toFixed(2)}`
+        `El pago excede el monto pendiente. Total adeudado: ${montoTotal.toFixed(2)}, Pagado: ${totalExistente.toFixed(2)}, Pendiente: ${pendiente.toFixed(2)} — Intenta pagar: ${nuevoMontoBase.toFixed(2)}`
       )
     }
   }

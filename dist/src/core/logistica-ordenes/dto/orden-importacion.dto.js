@@ -216,6 +216,13 @@ __decorate([
 ], ProponerPreciosDto.prototype, "ajusteFijo", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(100),
+    __metadata("design:type", Number)
+], ProponerPreciosDto.prototype, "ajustePorcentaje", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.ValidateNested)(),
     (0, class_transformer_1.Type)(() => RedondeoFormulaDto),
     __metadata("design:type", RedondeoFormulaDto)
@@ -247,6 +254,36 @@ __decorate([
     (0, class_transformer_1.Type)(() => FormulaDto),
     __metadata("design:type", FormulaDto)
 ], CerrarOrdenDto.prototype, "formula", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => ComponenteFormulaDto),
+    __metadata("design:type", ComponenteFormulaDto)
+], CerrarOrdenDto.prototype, "componenteCompra", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => ComponenteFormulaDto),
+    __metadata("design:type", ComponenteFormulaDto)
+], CerrarOrdenDto.prototype, "componenteLogistica", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CerrarOrdenDto.prototype, "ajusteFijo", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(100),
+    __metadata("design:type", Number)
+], CerrarOrdenDto.prototype, "ajustePorcentaje", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => RedondeoFormulaDto),
+    __metadata("design:type", RedondeoFormulaDto)
+], CerrarOrdenDto.prototype, "redondeo", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),

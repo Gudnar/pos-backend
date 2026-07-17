@@ -16,10 +16,14 @@ export class VentasController {
   async listar(
     @Req() req: any,
     @Query('sucursalId') sucursalId?: string,
-    @Query('fecha') fecha?: string,
+    @Query('fechaDesde') fechaDesde?: string,
+    @Query('fechaHasta') fechaHasta?: string,
     @Query('estadoVenta') estadoVenta?: string,
+    @Query('nombreCliente') nombreCliente?: string,
+    @Query('conSaldo') conSaldo?: string,
   ) {
-    const datos = await this.svc.listar(req.user.clienteId, sucursalId, fecha, estadoVenta)
+    const conSaldoBool = conSaldo === 'true' ? true : conSaldo === 'false' ? false : undefined
+    const datos = await this.svc.listar(req.user.clienteId, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldoBool)
     return { finalizado: true, mensaje: 'OK', datos }
   }
 

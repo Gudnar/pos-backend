@@ -33,15 +33,31 @@ export declare class LotesController {
         mensaje: string;
         datos: any[];
     }>;
-    obtener(req: any, id: string): Promise<{
+    listarPorProductoRoute(req: any, productoId: string, sucursalId?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
-        datos: import("../entity/lote.entity").Lote;
+        datos: import("../entity/lote.entity").Lote[];
+    }>;
+    obtenerStock(req: any, id: string): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: {
+            id: string;
+            stock: number;
+            nroLote: string | undefined;
+            precioVentaSF: number | undefined;
+            precioVentaCF: number | undefined;
+        };
     }>;
     trazabilidad(req: any, id: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: any;
+    }>;
+    obtener(req: any, id: string): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: import("../entity/lote.entity").Lote;
     }>;
     ingresar(req: any, dto: IngresoLoteDto): Promise<{
         finalizado: boolean;
