@@ -24,6 +24,9 @@ export class GastoLogistica extends AuditoriaEntity {
   @Column({ name: 'monto', type: 'decimal', precision: 15, scale: 2 })
   monto: number
 
+  @Column({ name: 'cantidad', type: 'int', default: 1 })
+  cantidad: number = 1
+
   @Column({ name: 'tipo_cambio', type: 'decimal', precision: 15, scale: 6 })
   tipoCambio: number
 

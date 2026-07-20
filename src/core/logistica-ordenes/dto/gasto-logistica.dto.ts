@@ -13,6 +13,9 @@ export class CreateGastoLogisticaDto {
   @IsNumber() @Min(0)
   monto: number
 
+  @IsOptional() @IsNumber() @Min(1)
+  cantidad?: number
+
   @IsNumber() @Min(0)
   tipoCambio: number
 
@@ -47,6 +50,9 @@ export class UpdateGastoLogisticaDto {
 
   @IsOptional() @IsNumber() @Min(0)
   monto?: number
+
+  @IsOptional() @IsNumber() @Min(1)
+  cantidad?: number
 
   @IsOptional() @IsNumber() @Min(0)
   tipoCambio?: number

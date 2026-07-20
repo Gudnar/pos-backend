@@ -7,6 +7,7 @@ export declare class GastoLogistica extends AuditoriaEntity {
     descripcion: string;
     monedaId: string;
     monto: number;
+    cantidad: number;
     tipoCambio: number;
     montoMonedaBase?: number;
     fechaGasto: string;

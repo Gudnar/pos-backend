@@ -39,11 +39,13 @@ let GastosLogisticaService = class GastosLogisticaService {
     }
     async crear(clienteId, ordenId, dto, usuarioCreacion) {
         const { fuenteId, ...gastoData } = dto;
+        const cantidad = Number(dto.cantidad) || 1;
         const gasto = await this.repo.save(this.repo.create({
             ...gastoData,
             clienteId,
             ordenImportacionId: ordenId,
-            montoMonedaBase: Number(dto.monto) * Number(dto.tipoCambio),
+            cantidad,
+            montoMonedaBase: Number(dto.monto) * cantidad * Number(dto.tipoCambio),
             fuenteId: fuenteId || undefined,
             estado: constants_1.Status.ACTIVE,
             transaccion: constants_1.Transacccion.CREAR,
@@ -59,7 +61,8 @@ let GastosLogisticaService = class GastosLogisticaService {
         const { fuenteId, ...rest } = dto;
         const nuevaFuente = fuenteId || undefined;
         Object.assign(g, rest);
-        g.montoMonedaBase = Number(g.monto) * Number(g.tipoCambio);
+        const cantidad = Number(g.cantidad) || 1;
+        g.montoMonedaBase = Number(g.monto) * cantidad * Number(g.tipoCambio);
         if (nuevaFuente !== undefined)
             g.fuenteId = nuevaFuente;
         Object.assign(g, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });

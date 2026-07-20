@@ -3,6 +3,7 @@ export declare class CreateGastoLogisticaDto {
     descripcion: string;
     monedaId: string;
     monto: number;
+    cantidad?: number;
     tipoCambio: number;
     fechaGasto: string;
     pais?: string;
@@ -16,6 +17,7 @@ export declare class UpdateGastoLogisticaDto {
     descripcion?: string;
     monedaId?: string;
     monto?: number;
+    cantidad?: number;
     tipoCambio?: number;
     fechaGasto?: string;
     pais?: string;

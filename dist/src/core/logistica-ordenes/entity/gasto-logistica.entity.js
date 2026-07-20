@@ -15,6 +15,7 @@ const auditoria_entity_1 = require("../../../common/entity/auditoria.entity");
 let GastoLogistica = class GastoLogistica extends auditoria_entity_1.AuditoriaEntity {
     constructor(data) {
         super(data);
+        this.cantidad = 1;
         if (data)
             Object.assign(this, data);
     }
@@ -47,6 +48,10 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'monto', type: 'decimal', precision: 15, scale: 2 }),
     __metadata("design:type", Number)
 ], GastoLogistica.prototype, "monto", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'cantidad', type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], GastoLogistica.prototype, "cantidad", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'tipo_cambio', type: 'decimal', precision: 15, scale: 6 }),
     __metadata("design:type", Number)
