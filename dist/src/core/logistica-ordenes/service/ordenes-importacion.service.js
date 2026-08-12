@@ -143,7 +143,7 @@ let OrdenesImportacionService = class OrdenesImportacionService {
         }
         const totalProductosMonedaCompra = items.reduce((s, i) => s + Number(i.subtotalMonedaCompra), 0);
         const totalProductosMonedaBase = items.reduce((s, i) => s + Number(i.subtotalMonedaBase), 0);
-        const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * Number(g.tipoCambio), 0);
+        const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio), 0);
         const costoTotalMonedaBase = totalProductosMonedaBase + totalGastosMonedaBase;
         const unidadesTotales = items.reduce((s, i) => s + Number(i.cantidadUnidades), 0);
         for (const item of items) {
@@ -160,7 +160,7 @@ let OrdenesImportacionService = class OrdenesImportacionService {
             Object.assign(item, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
         }
         for (const g of gastos) {
-            g.montoMonedaBase = Number(g.monto) * Number(g.tipoCambio);
+            g.montoMonedaBase = Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio);
             Object.assign(g, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
         }
         await this.itemRepo.save(items);
@@ -188,7 +188,7 @@ let OrdenesImportacionService = class OrdenesImportacionService {
             const override = dto.tiposCambioOverride?.find(o => o.gastoId === g.id);
             tcPrecioMap.set(g.id, override ? Number(override.tipoCambio) : Number(g.tipoCambio));
         }
-        const totalGastosPrecioBase = gastosParaPrecio.reduce((s, g) => s + Number(g.monto) * (tcPrecioMap.get(g.id) ?? Number(g.tipoCambio)), 0);
+        const totalGastosPrecioBase = gastosParaPrecio.reduce((s, g) => s + Number(g.monto) * (Number(g.cantidad) || 1) * (tcPrecioMap.get(g.id) ?? Number(g.tipoCambio)), 0);
         const totalProductosBase = items.reduce((s, i) => s + Number(i.subtotalMonedaBase ?? 0), 0);
         const unidadesTotales = items.reduce((s, i) => s + Number(i.cantidadUnidades), 0);
         if (dto.tasaIva != null)
@@ -421,7 +421,7 @@ let OrdenesImportacionService = class OrdenesImportacionService {
             this.gastoRepo.find({ where: { ordenImportacionId: id, clienteId, estado: constants_1.Status.ACTIVE } }),
         ]);
         const totalPagosMonedaBase = pagos.reduce((s, p) => s + Number(p.monto) * Number(p.tipoCambio), 0);
-        const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * Number(g.tipoCambio), 0);
+        const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio), 0);
         const totalProductosMonedaBase = items.reduce((s, i) => s + Number(i.subtotalMonedaBase ?? 0), 0);
         return {
             orden,
@@ -438,7 +438,7 @@ let OrdenesImportacionService = class OrdenesImportacionService {
             })),
             gastos: gastos.map(g => ({
                 ...g,
-                montoMonedaBase: Number(g.monto) * Number(g.tipoCambio),
+                montoMonedaBase: Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio),
             })),
             items: items.map(i => ({
                 ...i,

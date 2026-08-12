@@ -52,6 +52,8 @@ import { WhatsappFlowsModule } from './whatsapp-flows/whatsapp-flows.module'
         database: config.get('DB_DATABASE') || 'ide_ia_db',
         schema: config.get('DB_SCHEMA') || 'public',
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '/../../migrations/*.{ts,js}'],
+        migrationsRun: config.get('NODE_ENV') === 'production',
         synchronize: config.get('NODE_ENV') !== 'production',
         logging: config.get('LOG_SQL') === 'true',
       }),

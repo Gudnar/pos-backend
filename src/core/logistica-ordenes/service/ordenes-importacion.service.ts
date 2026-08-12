@@ -137,7 +137,7 @@ export class OrdenesImportacionService {
     // 2. Totales
     const totalProductosMonedaCompra = items.reduce((s, i) => s + Number(i.subtotalMonedaCompra), 0)
     const totalProductosMonedaBase = items.reduce((s, i) => s + Number(i.subtotalMonedaBase), 0)
-    const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * Number(g.tipoCambio), 0)
+    const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio), 0)
     const costoTotalMonedaBase = totalProductosMonedaBase + totalGastosMonedaBase
     const unidadesTotales = items.reduce((s, i) => s + Number(i.cantidadUnidades), 0)
 
@@ -157,7 +157,7 @@ export class OrdenesImportacionService {
 
     // 4. Actualizar gastos con monto en moneda base
     for (const g of gastos) {
-      g.montoMonedaBase = Number(g.monto) * Number(g.tipoCambio)
+      g.montoMonedaBase = Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio)
       Object.assign(g, { transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
     }
 
@@ -196,7 +196,7 @@ export class OrdenesImportacionService {
     }
 
     const totalGastosPrecioBase = gastosParaPrecio.reduce(
-      (s, g) => s + Number(g.monto) * (tcPrecioMap.get(g.id) ?? Number(g.tipoCambio)),
+      (s, g) => s + Number(g.monto) * (Number(g.cantidad) || 1) * (tcPrecioMap.get(g.id) ?? Number(g.tipoCambio)),
       0,
     )
     const totalProductosBase = (items as ItemOrdenImportacion[]).reduce(
@@ -480,7 +480,7 @@ export class OrdenesImportacionService {
     ])
 
     const totalPagosMonedaBase = pagos.reduce((s, p) => s + Number(p.monto) * Number(p.tipoCambio), 0)
-    const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * Number(g.tipoCambio), 0)
+    const totalGastosMonedaBase = gastos.reduce((s, g) => s + Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio), 0)
     const totalProductosMonedaBase = items.reduce((s, i) => s + Number(i.subtotalMonedaBase ?? 0), 0)
 
     return {
@@ -498,7 +498,7 @@ export class OrdenesImportacionService {
       })),
       gastos: gastos.map(g => ({
         ...g,
-        montoMonedaBase: Number(g.monto) * Number(g.tipoCambio),
+        montoMonedaBase: Number(g.monto) * (Number(g.cantidad) || 1) * Number(g.tipoCambio),
       })),
       items: items.map(i => ({
         ...i,
