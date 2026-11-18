@@ -117,6 +117,30 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'monto_adelanto', type: 'decimal', precision: 14, scale: 2, nullable: true }),
     __metadata("design:type", Number)
 ], Venta.prototype, "montoAdelanto", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'monto_efectivo', type: 'decimal', precision: 14, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Venta.prototype, "montoEfectivo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'nit_ci', length: 30, nullable: true }),
+    __metadata("design:type", String)
+], Venta.prototype, "nitCi", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'telefono_cliente', length: 60, nullable: true }),
+    __metadata("design:type", String)
+], Venta.prototype, "telefonoCliente", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'direccion_cliente', length: 300, nullable: true }),
+    __metadata("design:type", String)
+], Venta.prototype, "direccionCliente", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'nro_pesaje', length: 50, nullable: true }),
+    __metadata("design:type", String)
+], Venta.prototype, "nroPesaje", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'nro_factura', length: 50, nullable: true }),
+    __metadata("design:type", String)
+], Venta.prototype, "nroFactura", void 0);
 Venta = __decorate([
     (0, typeorm_1.Entity)({ name: 'venta', schema: process.env.DB_SCHEMA || 'public' }),
     __metadata("design:paramtypes", [Object])

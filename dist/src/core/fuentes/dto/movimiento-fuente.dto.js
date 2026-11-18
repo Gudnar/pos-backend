@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateMovimientoFuenteDto = exports.CreateTransferenciaDto = exports.CreateMovimientoFuenteDto = void 0;
 const class_validator_1 = require("class-validator");
 const TIPOS = ['INGRESO', 'EGRESO', 'TRANSFERENCIA_SALIDA', 'TRANSFERENCIA_ENTRADA'];
-const CATEGORIAS = ['PAGO_PROVEEDOR', 'GASTO_LOGISTICA', 'INGRESO_VENTA', 'RETIRO', 'DEPOSITO', 'TRANSFERENCIA', 'OTRO'];
+const CATEGORIAS = ['PAGO_PROVEEDOR', 'GASTO_LOGISTICA', 'INGRESO_VENTA', 'COMISION_VENTA', 'RETIRO', 'DEPOSITO', 'TRANSFERENCIA', 'OTRO'];
 class CreateMovimientoFuenteDto {
 }
 __decorate([

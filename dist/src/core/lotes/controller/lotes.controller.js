@@ -48,6 +48,10 @@ let LotesController = class LotesController {
         const datos = await this.svc.proximosAVencer(req.user.clienteId, sucursalId);
         return { finalizado: true, mensaje: 'OK', datos };
     }
+    async lotesParaPOS(req, productoId, sucursalId) {
+        const datos = await this.svc.lotesParaPOS(req.user.clienteId, productoId, sucursalId || undefined);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
     async listarPorProductoRoute(req, productoId, sucursalId) {
         const datos = await this.svc.listarPorProducto(req.user.clienteId, sucursalId, productoId);
         return { finalizado: true, mensaje: 'OK', datos };
@@ -136,6 +140,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], LotesController.prototype, "proximosAVencer", null);
+__decorate([
+    (0, common_1.Get)('pos/:productoId'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('productoId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)('sucursalId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], LotesController.prototype, "lotesParaPOS", null);
 __decorate([
     (0, common_1.Get)('producto/:productoId'),
     __param(0, (0, common_1.Req)()),

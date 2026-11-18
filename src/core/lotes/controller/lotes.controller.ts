@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common'
+import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common'
 import { JwtAuthGuard } from '../../authentication/guards/jwt-auth.guard'
 import { RolesGuard } from '../../authentication/guards/roles.guard'
 import { Roles } from '../../authentication/decorators/roles.decorator'
@@ -54,6 +54,16 @@ export class LotesController {
   @Get('proximos-vencer')
   async proximosAVencer(@Req() req: any, @Query('sucursalId') sucursalId?: string) {
     const datos = await this.svc.proximosAVencer(req.user.clienteId, sucursalId)
+    return { finalizado: true, mensaje: 'OK', datos }
+  }
+
+  @Get('pos/:productoId')
+  async lotesParaPOS(
+    @Req() req: any,
+    @Param('productoId', ParseUUIDPipe) productoId: string,
+    @Query('sucursalId') sucursalId?: string,
+  ) {
+    const datos = await this.svc.lotesParaPOS(req.user.clienteId, productoId, sucursalId || undefined)
     return { finalizado: true, mensaje: 'OK', datos }
   }
 

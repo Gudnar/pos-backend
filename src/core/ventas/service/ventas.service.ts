@@ -6,10 +6,26 @@ import { DetalleVenta } from '../entity/detalle-venta.entity'
 import { Lote, EstadoLote } from '../../lotes/entity/lote.entity'
 import { MovimientoStock, TipoMovimiento } from '../../movimientos-stock/entity/movimiento-stock.entity'
 import { Producto } from '../../productos/entity/producto.entity'
-import { CajaSesion } from '../../caja/entity/caja-sesion.entity'
+import { CajaSesion, EstadoSesion } from '../../caja/entity/caja-sesion.entity'
 import { IngresosService } from '../../ingresos/service/ingresos.service'
 import { Status, Transacccion } from '../../../common/constants'
-import { CrearVentaDto, AnularVentaDto } from '../dto/venta.dto'
+import { CrearVentaDto, AnularVentaDto, VentaPosDto } from '../dto/venta.dto'
+
+/** Valores que calcula el cobro del POS y que no vienen del DTO genérico. */
+type OpcionesVenta = {
+  fecha?: string
+  estadoVenta?: string
+  montoPagado?: number
+  cambio?: number | null
+  montoEfectivoCaja?: number
+  nitCi?: string
+  telefonoCliente?: string
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100
+const ETIQUETA_PAGO: Record<string, string> = {
+  EFECTIVO: 'Efectivo', TRANSFERENCIA: 'Transferencia', CHEQUE: 'Cheque', QR: 'QR', TARJETA: 'Tarjeta', ADELANTO: 'Adelanto',
+}
 
 @Injectable()
 export class VentasService {
@@ -85,7 +101,7 @@ export class VentasService {
     }
   }
 
-  async crear(clienteId: string, dto: CrearVentaDto, usuarioId: string): Promise<Venta> {
+  async crear(clienteId: string, dto: CrearVentaDto, usuarioId: string, opciones: OpcionesVenta = {}): Promise<Venta> {
     return this.dataSource.transaction(async (manager) => {
       // Generate nroVenta
       const year = new Date().getFullYear()
@@ -122,6 +138,15 @@ export class VentasService {
           },
           order: orden,
         })
+        // Lote elegido en el POS: se usa primero y, si no alcanza, se sigue con los demás en orden de picking
+        if (det.loteId) {
+          const elegido = lotes.find(l => l.id === det.loteId)
+          if (!elegido) {
+            throw new BadRequestException(`El lote seleccionado para "${producto.nombre}" no está disponible en esta sucursal`)
+          }
+          lotes.splice(lotes.indexOf(elegido), 1)
+          lotes.unshift(elegido)
+        }
 
         const asignaciones: Asignacion[] = []
         let restante = Number(det.cantidad)
@@ -164,11 +189,14 @@ export class VentasService {
         clienteId, sucursalId: dto.sucursalId,
         cajaId: dto.cajaId, cajaSesionId: dto.cajaSesionId,
         usuarioId, nroVenta,
-        fecha: new Date().toISOString().split('T')[0],
-        estadoVenta: EstadoVenta.PAGADA,
+        fecha: opciones.fecha || new Date().toISOString().split('T')[0],
+        estadoVenta: opciones.estadoVenta || EstadoVenta.PAGADA,
         metodoPago: dto.metodoPago,
         subtotal, descuento, impuesto, total,
-        montoPagado: dto.montoPagado ?? null, cambio,
+        montoPagado: opciones.montoPagado ?? dto.montoPagado ?? null,
+        cambio: opciones.cambio !== undefined ? opciones.cambio : cambio,
+        montoEfectivo: opciones.montoEfectivoCaja ?? null,
+        nitCi: opciones.nitCi || null, telefonoCliente: opciones.telefonoCliente || null,
         contactoClienteId: dto.contactoClienteId, nombreCliente: dto.nombreCliente,
         observaciones: dto.observaciones,
         estado: Status.ACTIVE, transaccion: Transacccion.CREAR, usuarioCreacion: usuarioId,
@@ -231,7 +259,8 @@ export class VentasService {
 
       // Update caja session totals
       if (dto.cajaSesionId) {
-        await manager.increment(CajaSesion, { id: dto.cajaSesionId }, 'totalVentas', total)
+        // La sesión de caja acumula el efectivo esperado; si no se indicó, se asume todo en efectivo
+        await manager.increment(CajaSesion, { id: dto.cajaSesionId }, 'totalVentas', opciones.montoEfectivoCaja ?? total)
         await manager.increment(CajaSesion, { id: dto.cajaSesionId }, 'nroVentas', 1)
       }
 
@@ -245,6 +274,70 @@ export class VentasService {
       }
 
       return venta
+    })
+  }
+
+  /**
+   * Venta desde el POS. conCobro=true (COBRAR): pagos en uno o varios métodos; el saldo solo se acepta
+   * si se pide registrarlo como deuda. conCobro=false (GUARDAR): sin pagos, todo el total queda como deuda.
+   */
+  async registrarDesdePOS(clienteId: string, dto: VentaPosDto, usuarioId: string, conCobro: boolean): Promise<Venta> {
+    if (dto.tipoOperacion === 'COTIZACION') {
+      throw new BadRequestException('Una cotización no se registra como venta: no descuenta stock ni genera cobro')
+    }
+    const total = r2(dto.detalles.reduce((s, d) => s + Number(d.precioUnitario) * Number(d.cantidad) - Number(d.descuento || 0), 0))
+    const pagos = conCobro ? (dto.pagos || []).filter(p => Number(p.monto) > 0) : []
+
+    const adelantos = pagos.filter(p => p.metodoPago === 'ADELANTO')
+    if (adelantos.length > 1) throw new BadRequestException('Solo se puede aplicar un adelanto por venta')
+    if (adelantos.length && !adelantos[0].adelantoId) throw new BadRequestException('Selecciona el adelanto a aplicar')
+
+    const totalPagado = r2(pagos.reduce((s, p) => s + Number(p.monto), 0))
+    const efectivo = r2(pagos.filter(p => p.metodoPago === 'EFECTIVO').reduce((s, p) => s + Number(p.monto), 0))
+    if (r2(totalPagado - efectivo) > total + 0.009) {
+      throw new BadRequestException('Los pagos que no son en efectivo superan el total; solo el efectivo puede dar cambio')
+    }
+    const cambio = r2(Math.max(0, totalPagado - total))
+    const saldo = r2(Math.max(0, total - totalPagado))
+    if (conCobro && saldo > 0 && !dto.registrarDeuda) {
+      throw new BadRequestException(`Faltan Bs ${saldo.toFixed(2)}. Completa el pago o regístralo como deuda`)
+    }
+
+    // Sesión de caja del usuario: obligatoria para cobrar
+    const sesion = await this.sesionRepo.findOne({
+      where: { clienteId, usuarioId, estadoSesion: EstadoSesion.ABIERTA, estado: Status.ACTIVE },
+    })
+    if (conCobro && !sesion) throw new BadRequestException('No tienes una caja abierta. Abre la caja antes de cobrar')
+    if (sesion && sesion.sucursalId && sesion.sucursalId !== dto.sucursalId) {
+      throw new BadRequestException('Tu caja abierta pertenece a otra sucursal')
+    }
+
+    const metodos = [...new Set(pagos.map(p => p.metodoPago))]
+    const metodoPago = !metodos.length ? 'CREDITO' : metodos.length === 1 ? metodos[0] : 'MIXTO'
+    const resumenPagos = pagos.length
+      ? 'Pagos: ' + pagos.map(p => `${ETIQUETA_PAGO[p.metodoPago] || p.metodoPago} Bs ${Number(p.monto).toFixed(2)}${p.referencia ? ` (ref. ${p.referencia})` : ''}`).join(', ')
+      : ''
+
+    const ventaDto: CrearVentaDto = {
+      sucursalId: dto.sucursalId,
+      cajaId: sesion?.cajaId,
+      cajaSesionId: sesion?.id,
+      metodoPago,
+      contactoClienteId: dto.contactoClienteId,
+      nombreCliente: dto.nombreCliente,
+      observaciones: [dto.observaciones, resumenPagos].filter(Boolean).join(' | ') || undefined,
+      adelantoId: adelantos[0]?.adelantoId,
+      montoAdelanto: adelantos[0] ? Number(adelantos[0].monto) : undefined,
+      detalles: dto.detalles,
+    }
+    return this.crear(clienteId, ventaDto, usuarioId, {
+      fecha: dto.fecha,
+      estadoVenta: saldo > 0 ? EstadoVenta.PENDIENTE : EstadoVenta.PAGADA,
+      montoPagado: totalPagado,
+      cambio: cambio > 0 ? cambio : null,
+      montoEfectivoCaja: r2(efectivo - cambio),
+      nitCi: dto.nitCi,
+      telefonoCliente: dto.telefonoCliente,
     })
   }
 
@@ -287,7 +380,8 @@ export class VentasService {
 
       // Update cajaSesion
       if (venta.cajaSesionId) {
-        await manager.decrement(CajaSesion, { id: venta.cajaSesionId }, 'totalVentas', Number(venta.total))
+        const efectivoCaja = venta.montoEfectivo != null ? Number(venta.montoEfectivo) : Number(venta.total)
+        await manager.decrement(CajaSesion, { id: venta.cajaSesionId }, 'totalVentas', efectivoCaja)
         await manager.decrement(CajaSesion, { id: venta.cajaSesionId }, 'nroVentas', 1)
       }
 
@@ -304,8 +398,9 @@ export class VentasService {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   private _ordenPicking(metodoPicking: string): Record<string, 'ASC' | 'DESC'> {
-    if (metodoPicking === 'FIFO') return { fechaIngreso: 'ASC' }
-    if (metodoPicking === 'LIFO') return { fechaIngreso: 'DESC' }
-    return { fechaVencimiento: 'ASC', fechaIngreso: 'ASC' } // FEFO
+    // fechaCreacion desempata lotes del mismo día; el POS usa el mismo orden (LotesService.lotesParaPOS)
+    if (metodoPicking === 'FIFO') return { fechaIngreso: 'ASC', fechaCreacion: 'ASC' }
+    if (metodoPicking === 'LIFO') return { fechaIngreso: 'DESC', fechaCreacion: 'DESC' }
+    return { fechaVencimiento: 'ASC', fechaIngreso: 'ASC', fechaCreacion: 'ASC' } // FEFO
   }
 }

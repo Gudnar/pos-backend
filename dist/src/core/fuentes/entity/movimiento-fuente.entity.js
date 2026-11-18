@@ -25,6 +25,7 @@ var CategoriaMovimiento;
     CategoriaMovimiento["PAGO_PROVEEDOR"] = "PAGO_PROVEEDOR";
     CategoriaMovimiento["GASTO_LOGISTICA"] = "GASTO_LOGISTICA";
     CategoriaMovimiento["INGRESO_VENTA"] = "INGRESO_VENTA";
+    CategoriaMovimiento["COMISION_VENTA"] = "COMISION_VENTA";
     CategoriaMovimiento["RETIRO"] = "RETIRO";
     CategoriaMovimiento["DEPOSITO"] = "DEPOSITO";
     CategoriaMovimiento["TRANSFERENCIA"] = "TRANSFERENCIA";

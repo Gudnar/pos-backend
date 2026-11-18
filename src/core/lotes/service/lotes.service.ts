@@ -271,6 +271,61 @@ export class LotesService {
     return this.ds.query(sql, params)
   }
 
+  // ── Lotes con stock para el POS: proveedor, costo unitario y precios ────────
+  // Costo: compra que ingresó el lote (convertido a Bs) → orden de importación → precio COMPRA del producto
+  async lotesParaPOS(clienteId: string, productoId: string, sucursalId?: string): Promise<any[]> {
+    const schema = process.env.DB_SCHEMA || 'public'
+    const params: any[] = [clienteId, productoId, Status.ACTIVE, EstadoLote.ACTIVO]
+    let sucursalCond = ''
+    if (sucursalId) { sucursalCond = `AND l.sucursal_id = $5`; params.push(sucursalId) }
+    const sql = `
+      SELECT l.id, l.nro_lote AS "nroLote", l.lote_interno AS "loteInterno",
+             l.fecha_ingreso::text AS "fechaIngreso", l._fecha_creacion AS "fechaCreacion", p.metodo_picking AS "metodoPicking",
+             l.cantidad_actual AS "stock", l.fecha_vencimiento AS "fechaVencimiento",
+             l.precio_venta_sf AS "precioVentaSF", l.precio_venta_cf AS "precioVentaCF",
+             COALESCE(pr.nombre, prc.nombre) AS "proveedor",
+             COALESCE(
+               (CASE WHEN COALESCE(c.moneda, 'BS') <> 'BS' AND COALESCE(c.tipo_cambio, 0) > 0
+                     THEN cd.precio_unitario * c.tipo_cambio ELSE cd.precio_unitario END),
+               (SELECT it.costo_total_unitario FROM ${schema}.logistica_item_orden it
+                JOIN ${schema}.logistica_orden_importacion o ON o.id = it.orden_importacion_id
+                WHERE o.cliente_id = l.cliente_id AND o.numero = l.nro_lote AND it.producto_id = l.producto_id
+                ORDER BY it.costo_total_unitario DESC NULLS LAST LIMIT 1),
+               (SELECT pp.precio FROM ${schema}.precio_producto pp
+                WHERE pp.producto_id = l.producto_id AND pp.tipo = 'COMPRA' AND pp.activo = true AND pp._estado = $3
+                ORDER BY pp._fecha_creacion DESC LIMIT 1)
+             ) AS "costoUnitario"
+      FROM ${schema}.lote l
+      JOIN ${schema}.producto p ON p.id = l.producto_id
+      LEFT JOIN ${schema}.proveedor pr ON pr.id = l.proveedor_id
+      LEFT JOIN LATERAL (
+        SELECT d.precio_unitario, d.moneda, d.compra_id FROM ${schema}.compra_detalle d
+        WHERE d.lote_id = l.id ORDER BY d._fecha_creacion DESC LIMIT 1
+      ) cd ON true
+      LEFT JOIN ${schema}.compra c ON c.id = cd.compra_id
+      LEFT JOIN ${schema}.proveedor prc ON prc.id = c.proveedor_id
+      WHERE l.cliente_id = $1 AND l.producto_id = $2 AND l._estado = $3 AND l.estado_lote = $4
+        AND l.cantidad_actual > 0
+      ${sucursalCond}
+      ORDER BY l.fecha_vencimiento ASC NULLS LAST, l.fecha_ingreso ASC, l._fecha_creacion ASC`
+    const rows = await this.ds.query(sql, params)
+    // Mismo orden de salida que aplica la venta (VentasService._ordenPicking)
+    const metodo = rows[0]?.metodoPicking
+    if (metodo === 'FIFO' || metodo === 'LIFO') {
+      const dir = metodo === 'FIFO' ? 1 : -1
+      rows.sort((a: any, b: any) =>
+        dir * (a.fechaIngreso.localeCompare(b.fechaIngreso) || new Date(a.fechaCreacion).getTime() - new Date(b.fechaCreacion).getTime()))
+    }
+    const num = (v: any) => (v == null ? null : Number(v))
+    return rows.map(({ fechaCreacion, metodoPicking, ...r }: any) => ({
+      ...r,
+      stock: Number(r.stock),
+      precioVentaSF: num(r.precioVentaSF),
+      precioVentaCF: num(r.precioVentaCF),
+      costoUnitario: num(r.costoUnitario),
+    }))
+  }
+
   // ── Reporte general de stock ──────────────────────────────────────────────
   async reporteGeneral(clienteId: string, opts: { sucursalId?: string }): Promise<any[]> {
     const schema = process.env.DB_SCHEMA || 'public'

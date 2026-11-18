@@ -1,7 +1,7 @@
 import { IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator'
 
 const TIPOS = ['INGRESO', 'EGRESO', 'TRANSFERENCIA_SALIDA', 'TRANSFERENCIA_ENTRADA']
-const CATEGORIAS = ['PAGO_PROVEEDOR', 'GASTO_LOGISTICA', 'INGRESO_VENTA', 'RETIRO', 'DEPOSITO', 'TRANSFERENCIA', 'OTRO']
+const CATEGORIAS = ['PAGO_PROVEEDOR', 'GASTO_LOGISTICA', 'INGRESO_VENTA', 'COMISION_VENTA', 'RETIRO', 'DEPOSITO', 'TRANSFERENCIA', 'OTRO']
 
 export class CreateMovimientoFuenteDto {
   @IsIn(TIPOS)

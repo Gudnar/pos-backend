@@ -22,6 +22,7 @@ export declare class LotesService {
         estadoLote?: string;
         search?: string;
     }): Promise<any[]>;
+    lotesParaPOS(clienteId: string, productoId: string, sucursalId?: string): Promise<any[]>;
     reporteGeneral(clienteId: string, opts: {
         sucursalId?: string;
     }): Promise<any[]>;

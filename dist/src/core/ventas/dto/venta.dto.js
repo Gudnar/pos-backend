@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AnularVentaDto = exports.CrearVentaDto = exports.DetalleVentaDto = void 0;
+exports.AnularVentaDto = exports.VentaPosDto = exports.PagoVentaDto = exports.METODOS_PAGO_POS = exports.CrearVentaDto = exports.DetalleVentaDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class DetalleVentaDto {
@@ -35,6 +35,12 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], DetalleVentaDto.prototype, "descuento", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value || undefined),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], DetalleVentaDto.prototype, "loteId", void 0);
 exports.DetalleVentaDto = DetalleVentaDto;
 class CrearVentaDto {
 }
@@ -113,6 +119,94 @@ __decorate([
     __metadata("design:type", Array)
 ], CrearVentaDto.prototype, "detalles", void 0);
 exports.CrearVentaDto = CrearVentaDto;
+exports.METODOS_PAGO_POS = ['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE', 'QR', 'TARJETA', 'ADELANTO'];
+class PagoVentaDto {
+}
+__decorate([
+    (0, class_validator_1.IsIn)(exports.METODOS_PAGO_POS),
+    __metadata("design:type", String)
+], PagoVentaDto.prototype, "metodoPago", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], PagoVentaDto.prototype, "monto", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PagoVentaDto.prototype, "referencia", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value || undefined),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], PagoVentaDto.prototype, "adelantoId", void 0);
+exports.PagoVentaDto = PagoVentaDto;
+class VentaPosDto {
+}
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "sucursalId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['VENTA', 'COTIZACION']),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "tipoOperacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value || undefined),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "fecha", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value || undefined),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "contactoClienteId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "nombreCliente", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "nitCi", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "telefonoCliente", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], VentaPosDto.prototype, "observaciones", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => PagoVentaDto),
+    __metadata("design:type", Array)
+], VentaPosDto.prototype, "pagos", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], VentaPosDto.prototype, "registrarDeuda", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMinSize)(1),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => DetalleVentaDto),
+    __metadata("design:type", Array)
+], VentaPosDto.prototype, "detalles", void 0);
+exports.VentaPosDto = VentaPosDto;
 class AnularVentaDto {
 }
 __decorate([

@@ -35,5 +35,11 @@ export declare class Venta extends AuditoriaEntity {
     observaciones?: string;
     adelantoId?: string;
     montoAdelanto?: number;
+    montoEfectivo?: number;
+    nitCi?: string;
+    telefonoCliente?: string;
+    direccionCliente?: string;
+    nroPesaje?: string;
+    nroFactura?: string;
     constructor(data?: Partial<Venta>);
 }

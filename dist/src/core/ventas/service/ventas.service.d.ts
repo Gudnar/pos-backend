@@ -6,7 +6,16 @@ import { MovimientoStock } from '../../movimientos-stock/entity/movimiento-stock
 import { Producto } from '../../productos/entity/producto.entity';
 import { CajaSesion } from '../../caja/entity/caja-sesion.entity';
 import { IngresosService } from '../../ingresos/service/ingresos.service';
-import { CrearVentaDto, AnularVentaDto } from '../dto/venta.dto';
+import { CrearVentaDto, AnularVentaDto, VentaPosDto } from '../dto/venta.dto';
+type OpcionesVenta = {
+    fecha?: string;
+    estadoVenta?: string;
+    montoPagado?: number;
+    cambio?: number | null;
+    montoEfectivoCaja?: number;
+    nitCi?: string;
+    telefonoCliente?: string;
+};
 export declare class VentasService {
     private readonly ventaRepo;
     private readonly detalleRepo;
@@ -19,7 +28,9 @@ export declare class VentasService {
     constructor(ventaRepo: Repository<Venta>, detalleRepo: Repository<DetalleVenta>, loteRepo: Repository<Lote>, movRepo: Repository<MovimientoStock>, productoRepo: Repository<Producto>, sesionRepo: Repository<CajaSesion>, ingresosService: IngresosService, dataSource: DataSource);
     listar(clienteId: string, sucursalId?: string, fechaDesde?: string, fechaHasta?: string, estadoVenta?: string, nombreCliente?: string, conSaldo?: boolean): Promise<Venta[]>;
     obtener(clienteId: string, id: string): Promise<any>;
-    crear(clienteId: string, dto: CrearVentaDto, usuarioId: string): Promise<Venta>;
+    crear(clienteId: string, dto: CrearVentaDto, usuarioId: string, opciones?: OpcionesVenta): Promise<Venta>;
+    registrarDesdePOS(clienteId: string, dto: VentaPosDto, usuarioId: string, conCobro: boolean): Promise<Venta>;
     anular(clienteId: string, id: string, dto: AnularVentaDto, usuarioModificacion: string): Promise<Venta>;
     private _ordenPicking;
 }
+export {};

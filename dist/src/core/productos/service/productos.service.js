@@ -126,6 +126,7 @@ let ProductosService = class ProductosService {
                 nombre: p.nombre,
                 codigoTienda: p.codigoTienda,
                 codigoBarras: p.codigoBarras,
+                codigoProveedor: p.codigoProveedor,
                 unidadMedida: p.unidadMedida,
                 requiereLote: p.requiereLote,
                 metodoPicking: p.metodoPicking,

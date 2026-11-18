@@ -33,6 +33,11 @@ export declare class LotesController {
         mensaje: string;
         datos: any[];
     }>;
+    lotesParaPOS(req: any, productoId: string, sucursalId?: string): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: any[];
+    }>;
     listarPorProductoRoute(req: any, productoId: string, sucursalId?: string): Promise<{
         finalizado: boolean;
         mensaje: string;

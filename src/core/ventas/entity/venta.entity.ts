@@ -82,6 +82,26 @@ export class Venta extends AuditoriaEntity {
   @Column({ name: 'monto_adelanto', type: 'decimal', precision: 14, scale: 2, nullable: true })
   montoAdelanto?: number
 
+  // Efectivo que quedó en caja (recibido − cambio); es lo que suma/resta a la sesión de caja
+  @Column({ name: 'monto_efectivo', type: 'decimal', precision: 14, scale: 2, nullable: true })
+  montoEfectivo?: number
+
+  // ── Datos para la nota de venta ───────────────────────────────────────────
+  @Column({ name: 'nit_ci', length: 30, nullable: true })
+  nitCi?: string
+
+  @Column({ name: 'telefono_cliente', length: 60, nullable: true })
+  telefonoCliente?: string
+
+  @Column({ name: 'direccion_cliente', length: 300, nullable: true })
+  direccionCliente?: string
+
+  @Column({ name: 'nro_pesaje', length: 50, nullable: true })
+  nroPesaje?: string
+
+  @Column({ name: 'nro_factura', length: 50, nullable: true })
+  nroFactura?: string
+
   constructor(data?: Partial<Venta>) {
     super(data)
     if (data) Object.assign(this, data)

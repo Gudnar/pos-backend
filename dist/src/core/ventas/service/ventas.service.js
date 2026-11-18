@@ -24,6 +24,10 @@ const producto_entity_1 = require("../../productos/entity/producto.entity");
 const caja_sesion_entity_1 = require("../../caja/entity/caja-sesion.entity");
 const ingresos_service_1 = require("../../ingresos/service/ingresos.service");
 const constants_1 = require("../../../common/constants");
+const r2 = (n) => Math.round(n * 100) / 100;
+const ETIQUETA_PAGO = {
+    EFECTIVO: 'Efectivo', TRANSFERENCIA: 'Transferencia', CHEQUE: 'Cheque', QR: 'QR', TARJETA: 'Tarjeta', ADELANTO: 'Adelanto',
+};
 let VentasService = class VentasService {
     constructor(ventaRepo, detalleRepo, loteRepo, movRepo, productoRepo, sesionRepo, ingresosService, dataSource) {
         this.ventaRepo = ventaRepo;
@@ -79,7 +83,7 @@ let VentasService = class VentasService {
             })),
         };
     }
-    async crear(clienteId, dto, usuarioId) {
+    async crear(clienteId, dto, usuarioId, opciones = {}) {
         return this.dataSource.transaction(async (manager) => {
             const year = new Date().getFullYear();
             const count = await manager.count(venta_entity_1.Venta, { where: { clienteId } });
@@ -103,6 +107,14 @@ let VentasService = class VentasService {
                     },
                     order: orden,
                 });
+                if (det.loteId) {
+                    const elegido = lotes.find(l => l.id === det.loteId);
+                    if (!elegido) {
+                        throw new common_1.BadRequestException(`El lote seleccionado para "${producto.nombre}" no está disponible en esta sucursal`);
+                    }
+                    lotes.splice(lotes.indexOf(elegido), 1);
+                    lotes.unshift(elegido);
+                }
                 const asignaciones = [];
                 let restante = Number(det.cantidad);
                 for (const lote of lotes) {
@@ -136,11 +148,14 @@ let VentasService = class VentasService {
                 clienteId, sucursalId: dto.sucursalId,
                 cajaId: dto.cajaId, cajaSesionId: dto.cajaSesionId,
                 usuarioId, nroVenta,
-                fecha: new Date().toISOString().split('T')[0],
-                estadoVenta: venta_entity_1.EstadoVenta.PAGADA,
+                fecha: opciones.fecha || new Date().toISOString().split('T')[0],
+                estadoVenta: opciones.estadoVenta || venta_entity_1.EstadoVenta.PAGADA,
                 metodoPago: dto.metodoPago,
                 subtotal, descuento, impuesto, total,
-                montoPagado: dto.montoPagado ?? null, cambio,
+                montoPagado: opciones.montoPagado ?? dto.montoPagado ?? null,
+                cambio: opciones.cambio !== undefined ? opciones.cambio : cambio,
+                montoEfectivo: opciones.montoEfectivoCaja ?? null,
+                nitCi: opciones.nitCi || null, telefonoCliente: opciones.telefonoCliente || null,
                 contactoClienteId: dto.contactoClienteId, nombreCliente: dto.nombreCliente,
                 observaciones: dto.observaciones,
                 estado: constants_1.Status.ACTIVE, transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioId,
@@ -188,7 +203,7 @@ let VentasService = class VentasService {
                 }
             }
             if (dto.cajaSesionId) {
-                await manager.increment(caja_sesion_entity_1.CajaSesion, { id: dto.cajaSesionId }, 'totalVentas', total);
+                await manager.increment(caja_sesion_entity_1.CajaSesion, { id: dto.cajaSesionId }, 'totalVentas', opciones.montoEfectivoCaja ?? total);
                 await manager.increment(caja_sesion_entity_1.CajaSesion, { id: dto.cajaSesionId }, 'nroVentas', 1);
             }
             if (dto.adelantoId) {
@@ -199,6 +214,62 @@ let VentasService = class VentasService {
                 await manager.save(venta_entity_1.Venta, venta);
             }
             return venta;
+        });
+    }
+    async registrarDesdePOS(clienteId, dto, usuarioId, conCobro) {
+        if (dto.tipoOperacion === 'COTIZACION') {
+            throw new common_1.BadRequestException('Una cotización no se registra como venta: no descuenta stock ni genera cobro');
+        }
+        const total = r2(dto.detalles.reduce((s, d) => s + Number(d.precioUnitario) * Number(d.cantidad) - Number(d.descuento || 0), 0));
+        const pagos = conCobro ? (dto.pagos || []).filter(p => Number(p.monto) > 0) : [];
+        const adelantos = pagos.filter(p => p.metodoPago === 'ADELANTO');
+        if (adelantos.length > 1)
+            throw new common_1.BadRequestException('Solo se puede aplicar un adelanto por venta');
+        if (adelantos.length && !adelantos[0].adelantoId)
+            throw new common_1.BadRequestException('Selecciona el adelanto a aplicar');
+        const totalPagado = r2(pagos.reduce((s, p) => s + Number(p.monto), 0));
+        const efectivo = r2(pagos.filter(p => p.metodoPago === 'EFECTIVO').reduce((s, p) => s + Number(p.monto), 0));
+        if (r2(totalPagado - efectivo) > total + 0.009) {
+            throw new common_1.BadRequestException('Los pagos que no son en efectivo superan el total; solo el efectivo puede dar cambio');
+        }
+        const cambio = r2(Math.max(0, totalPagado - total));
+        const saldo = r2(Math.max(0, total - totalPagado));
+        if (conCobro && saldo > 0 && !dto.registrarDeuda) {
+            throw new common_1.BadRequestException(`Faltan Bs ${saldo.toFixed(2)}. Completa el pago o regístralo como deuda`);
+        }
+        const sesion = await this.sesionRepo.findOne({
+            where: { clienteId, usuarioId, estadoSesion: caja_sesion_entity_1.EstadoSesion.ABIERTA, estado: constants_1.Status.ACTIVE },
+        });
+        if (conCobro && !sesion)
+            throw new common_1.BadRequestException('No tienes una caja abierta. Abre la caja antes de cobrar');
+        if (sesion && sesion.sucursalId && sesion.sucursalId !== dto.sucursalId) {
+            throw new common_1.BadRequestException('Tu caja abierta pertenece a otra sucursal');
+        }
+        const metodos = [...new Set(pagos.map(p => p.metodoPago))];
+        const metodoPago = !metodos.length ? 'CREDITO' : metodos.length === 1 ? metodos[0] : 'MIXTO';
+        const resumenPagos = pagos.length
+            ? 'Pagos: ' + pagos.map(p => `${ETIQUETA_PAGO[p.metodoPago] || p.metodoPago} Bs ${Number(p.monto).toFixed(2)}${p.referencia ? ` (ref. ${p.referencia})` : ''}`).join(', ')
+            : '';
+        const ventaDto = {
+            sucursalId: dto.sucursalId,
+            cajaId: sesion?.cajaId,
+            cajaSesionId: sesion?.id,
+            metodoPago,
+            contactoClienteId: dto.contactoClienteId,
+            nombreCliente: dto.nombreCliente,
+            observaciones: [dto.observaciones, resumenPagos].filter(Boolean).join(' | ') || undefined,
+            adelantoId: adelantos[0]?.adelantoId,
+            montoAdelanto: adelantos[0] ? Number(adelantos[0].monto) : undefined,
+            detalles: dto.detalles,
+        };
+        return this.crear(clienteId, ventaDto, usuarioId, {
+            fecha: dto.fecha,
+            estadoVenta: saldo > 0 ? venta_entity_1.EstadoVenta.PENDIENTE : venta_entity_1.EstadoVenta.PAGADA,
+            montoPagado: totalPagado,
+            cambio: cambio > 0 ? cambio : null,
+            montoEfectivoCaja: r2(efectivo - cambio),
+            nitCi: dto.nitCi,
+            telefonoCliente: dto.telefonoCliente,
         });
     }
     async anular(clienteId, id, dto, usuarioModificacion) {
@@ -235,7 +306,8 @@ let VentasService = class VentasService {
                 }));
             }
             if (venta.cajaSesionId) {
-                await manager.decrement(caja_sesion_entity_1.CajaSesion, { id: venta.cajaSesionId }, 'totalVentas', Number(venta.total));
+                const efectivoCaja = venta.montoEfectivo != null ? Number(venta.montoEfectivo) : Number(venta.total);
+                await manager.decrement(caja_sesion_entity_1.CajaSesion, { id: venta.cajaSesionId }, 'totalVentas', efectivoCaja);
                 await manager.decrement(caja_sesion_entity_1.CajaSesion, { id: venta.cajaSesionId }, 'nroVentas', 1);
             }
             Object.assign(venta, {
@@ -249,10 +321,10 @@ let VentasService = class VentasService {
     }
     _ordenPicking(metodoPicking) {
         if (metodoPicking === 'FIFO')
-            return { fechaIngreso: 'ASC' };
+            return { fechaIngreso: 'ASC', fechaCreacion: 'ASC' };
         if (metodoPicking === 'LIFO')
-            return { fechaIngreso: 'DESC' };
-        return { fechaVencimiento: 'ASC', fechaIngreso: 'ASC' };
+            return { fechaIngreso: 'DESC', fechaCreacion: 'DESC' };
+        return { fechaVencimiento: 'ASC', fechaIngreso: 'ASC', fechaCreacion: 'ASC' };
     }
 };
 VentasService = __decorate([

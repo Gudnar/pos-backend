@@ -14,32 +14,100 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VentasController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
 const jwt_auth_guard_1 = require("../../authentication/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../authentication/guards/roles.guard");
 const roles_decorator_1 = require("../../authentication/decorators/roles.decorator");
 const ventas_service_1 = require("../service/ventas.service");
+const venta_documentos_service_1 = require("../service/venta-documentos.service");
+const venta_extras_service_1 = require("../service/venta-extras.service");
+const venta_extras_dto_1 = require("../dto/venta-extras.dto");
 const venta_dto_1 = require("../dto/venta.dto");
 const response_messages_1 = require("../../../common/constants/response-messages");
 let VentasController = class VentasController {
-    constructor(svc) {
+    constructor(svc, docsSvc, extrasSvc) {
         this.svc = svc;
+        this.docsSvc = docsSvc;
+        this.extrasSvc = extrasSvc;
     }
     async listar(req, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldo) {
         const conSaldoBool = conSaldo === 'true' ? true : conSaldo === 'false' ? false : undefined;
-        const datos = await this.svc.listar(req.user.clienteId, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldoBool);
+        const ventas = await this.svc.listar(req.user.clienteId, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldoBool);
+        const ids = ventas.map(v => v.id);
+        const docs = await this.docsSvc.tiposPorVenta(req.user.clienteId, ids);
+        const comisiones = await this.extrasSvc.totalComisionesPorVenta(req.user.clienteId, ids);
+        const datos = ventas.map(v => ({ ...v, documentos: docs.get(v.id) || [], totalComisiones: comisiones.get(v.id) || 0 }));
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async obtener(req, id) {
-        const datos = await this.svc.obtener(req.user.clienteId, id);
+        const venta = await this.svc.obtener(req.user.clienteId, id);
+        const documentos = await this.docsSvc.listar(req.user.clienteId, id);
+        const datos = { ...venta, documentos };
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async crear(req, dto) {
         const datos = await this.svc.crear(req.user.clienteId, dto, req.user.id);
         return { finalizado: true, mensaje: response_messages_1.Messages.SUCCESS_CREATE, datos };
     }
+    async cobrar(req, dto) {
+        const datos = await this.svc.registrarDesdePOS(req.user.clienteId, dto, req.user.id, true);
+        return { finalizado: true, mensaje: 'Venta cobrada', datos };
+    }
+    async guardarSinCobro(req, dto) {
+        const datos = await this.svc.registrarDesdePOS(req.user.clienteId, dto, req.user.id, false);
+        return { finalizado: true, mensaje: 'Venta registrada como deuda', datos };
+    }
     async anular(req, id, dto) {
         const datos = await this.svc.anular(req.user.clienteId, id, dto, req.user.id);
+        await this.extrasSvc.cancelarComisionesDeVenta(req.user.clienteId, id, req.user.id);
         return { finalizado: true, mensaje: 'Venta anulada', datos };
+    }
+    async listarDocumentos(req, id) {
+        const datos = await this.docsSvc.listar(req.user.clienteId, id);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
+    async subirDocumento(req, id, tipo, file) {
+        const datos = await this.docsSvc.subir(req.user.clienteId, id, tipo, file, req.user.id);
+        return { finalizado: true, mensaje: 'Documento subido', datos };
+    }
+    async verDocumento(req, id, tipo, res) {
+        const { doc, rutaAbsoluta } = await this.docsSvc.obtenerArchivo(req.user.clienteId, id, tipo);
+        res.setHeader('Content-Type', doc.mimeType);
+        res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(doc.nombreOriginal)}`);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.sendFile(rutaAbsoluta);
+    }
+    async eliminarDocumento(req, id, tipo) {
+        await this.docsSvc.eliminar(req.user.clienteId, id, tipo, req.user.id);
+        return { finalizado: true, mensaje: 'Documento eliminado', datos: null };
+    }
+    async datosImpresion(req, id) {
+        const datos = await this.extrasSvc.datosImpresion(req.user.clienteId, id);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
+    async actualizarDatosNota(req, id, dto) {
+        const datos = await this.extrasSvc.actualizarDatosNota(req.user.clienteId, id, dto, req.user.id);
+        return { finalizado: true, mensaje: response_messages_1.Messages.SUCCESS_UPDATE, datos };
+    }
+    async obtenerHojaRuta(req, id) {
+        const datos = await this.extrasSvc.obtenerHojaRuta(req.user.clienteId, id);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
+    async guardarHojaRuta(req, id, dto) {
+        const datos = await this.extrasSvc.guardarHojaRuta(req.user.clienteId, id, dto, req.user.id);
+        return { finalizado: true, mensaje: 'Hoja de ruta guardada', datos };
+    }
+    async listarComisiones(req, id) {
+        const datos = await this.extrasSvc.listarComisiones(req.user.clienteId, id);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
+    async crearComision(req, id, dto) {
+        const datos = await this.extrasSvc.crearComision(req.user.clienteId, id, dto, req.user.id);
+        return { finalizado: true, mensaje: 'Comisión registrada', datos };
+    }
+    async eliminarComision(req, id, comisionId) {
+        await this.extrasSvc.eliminarComision(req.user.clienteId, id, comisionId, req.user.id);
+        return { finalizado: true, mensaje: 'Comisión eliminada', datos: null };
     }
 };
 __decorate([
@@ -73,6 +141,24 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], VentasController.prototype, "crear", null);
 __decorate([
+    (0, common_1.Post)('cobrar'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, venta_dto_1.VentaPosDto]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "cobrar", null);
+__decorate([
+    (0, common_1.Post)('borrador'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, venta_dto_1.VentaPosDto]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "guardarSinCobro", null);
+__decorate([
     (0, common_1.Put)(':id/anular'),
     (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO'),
     __param(0, (0, common_1.Req)()),
@@ -82,11 +168,115 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, venta_dto_1.AnularVentaDto]),
     __metadata("design:returntype", Promise)
 ], VentasController.prototype, "anular", null);
+__decorate([
+    (0, common_1.Get)(':id/documentos'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "listarDocumentos", null);
+__decorate([
+    (0, common_1.Post)(':id/documentos/:tipo'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { limits: { fileSize: venta_documentos_service_1.MAX_TAMANO_DOCUMENTO, files: 1 } })),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('tipo')),
+    __param(3, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "subirDocumento", null);
+__decorate([
+    (0, common_1.Get)(':id/documentos/:tipo/archivo'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('tipo')),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "verDocumento", null);
+__decorate([
+    (0, common_1.Delete)(':id/documentos/:tipo'),
+    (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('tipo')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "eliminarDocumento", null);
+__decorate([
+    (0, common_1.Get)(':id/impresion'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "datosImpresion", null);
+__decorate([
+    (0, common_1.Put)(':id/datos-nota'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, venta_extras_dto_1.DatosNotaVentaDto]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "actualizarDatosNota", null);
+__decorate([
+    (0, common_1.Get)(':id/hoja-ruta'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "obtenerHojaRuta", null);
+__decorate([
+    (0, common_1.Put)(':id/hoja-ruta'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, venta_extras_dto_1.HojaRutaDto]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "guardarHojaRuta", null);
+__decorate([
+    (0, common_1.Get)(':id/comisiones'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "listarComisiones", null);
+__decorate([
+    (0, common_1.Post)(':id/comisiones'),
+    (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, venta_extras_dto_1.CrearComisionDto]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "crearComision", null);
+__decorate([
+    (0, common_1.Delete)(':id/comisiones/:comisionId'),
+    (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('comisionId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "eliminarComision", null);
 VentasController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO', 'CAJERO', 'VENDEDOR'),
     (0, common_1.Controller)('ventas'),
-    __metadata("design:paramtypes", [ventas_service_1.VentasService])
+    __metadata("design:paramtypes", [ventas_service_1.VentasService,
+        venta_documentos_service_1.VentaDocumentosService,
+        venta_extras_service_1.VentaExtrasService])
 ], VentasController);
 exports.VentasController = VentasController;
 //# sourceMappingURL=ventas.controller.js.map
