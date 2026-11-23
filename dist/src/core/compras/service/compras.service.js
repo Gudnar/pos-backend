@@ -50,6 +50,7 @@ const movimiento_stock_entity_1 = require("../../movimientos-stock/entity/movimi
 const constants_1 = require("../../../common/constants");
 const movimientos_fuente_service_1 = require("../../fuentes/service/movimientos-fuente.service");
 const movimiento_fuente_entity_1 = require("../../fuentes/entity/movimiento-fuente.entity");
+const conversion_moneda_1 = require("../../../common/lib/conversion-moneda");
 let ComprasService = class ComprasService {
     constructor(compraRepo, detalleRepo, pagoRepo, logRepo, loteRepo, movimientoRepo, dataSource, movimientosFuenteService) {
         this.compraRepo = compraRepo;
@@ -87,7 +88,13 @@ let ComprasService = class ComprasService {
             where: { compraId: id, clienteId, estado: constants_1.Status.ACTIVE },
         });
         const schema = process.env.DB_SCHEMA || 'public';
-        const pagos = await this.dataSource.query(`SELECT p.*,
+        const pagos = await this.dataSource.query(`SELECT p.id, p.fecha, p.monto, p.referencia, p.notas,
+              p.metodo_pago AS "metodoPago", p.moneda_id AS "monedaId",
+              p.tipo_cambio AS "tipoCambio", p.monto_en_bs AS "montoEnBs",
+              p.fuente_id AS "fuenteId", p.movimiento_fuente_id AS "movimientoFuenteId",
+              p.tc_paso1 AS "tcPaso1", p.tc_operacion AS "tcOperacion",
+              p.moneda_intermedia_id AS "monedaIntermediaId", p.monto_intermedio AS "montoIntermedio",
+              p.tc_paso2 AS "tcPaso2", p.tc_paso2_operacion AS "tcPaso2Operacion",
               f.nombre AS "fuenteNombre", f.tipo AS "fuenteTipo",
               m.codigo AS "monedaCodigo", m.simbolo AS "monedaSimbolo", m.nombre AS "monedaNombre"
        FROM "${schema}"."pago_proveedor" p
@@ -760,6 +767,12 @@ let ComprasService = class ComprasService {
         p.id, p.fecha, p.monto,
         p.monto_en_bs    AS "montoEnBs",
         p.tipo_cambio    AS "tipoCambio",
+        p.tc_paso1       AS "tcPaso1",
+        p.tc_operacion   AS "tcOperacion",
+        p.moneda_intermedia_id AS "monedaIntermediaId",
+        p.monto_intermedio AS "montoIntermedio",
+        p.tc_paso2       AS "tcPaso2",
+        p.tc_paso2_operacion AS "tcPaso2Operacion",
         p.metodo_pago    AS "metodoPago",
         p.referencia,    p.notas,
         p.proveedor_id   AS "proveedorId",
@@ -802,8 +815,9 @@ let ComprasService = class ComprasService {
         const compra = await this.compraRepo.findOne({ where: { id: compraId, clienteId, estado: constants_1.Status.ACTIVE } });
         if (!compra)
             throw new common_1.NotFoundException('Compra no encontrada');
-        const tc = Number(dto.tipoCambio || 1);
-        const montoEnBs = Number(dto.monto) * tc;
+        const conv = (0, conversion_moneda_1.calcularConversion)(Number(dto.monto), { ...dto, tipoCambio: dto.tipoCambio || 1 });
+        const tc = conv.tipoCambio;
+        const montoEnBs = conv.montoBase;
         const compraMoneda = (compra.moneda || 'BOB').toUpperCase();
         const esDivisa = !['BS', 'BOB', 'BOL'].includes(compraMoneda);
         const totalCompraEnBs = Number(compra.total) * Number(compra.tipoCambio || 1);
@@ -819,14 +833,14 @@ let ComprasService = class ComprasService {
         }
         if (esDivisa) {
             const totalCompraEnDivisa = Number(compra.total);
-            const pagadoEnDivisa = pagosPrevios
-                .filter(p => p.monedaId)
-                .reduce((acc, p) => acc + Number(p.monto), 0)
-                + pagosPrevios
-                    .filter(p => !p.monedaId)
-                    .reduce((acc, p) => acc + Number(p.montoEnBs) / Number(compra.tipoCambio || 1), 0);
+            const monedasCompra = (await this.dataSource.query(`SELECT id FROM logistica_moneda WHERE cliente_id = $1 AND UPPER(codigo) = $2`, [clienteId, compraMoneda])).map((r) => r.id);
+            const enMonedaCompra = (monedaId) => !!monedaId && monedasCompra.includes(monedaId);
+            const pagadoEnDivisa = pagosPrevios.reduce((acc, p) => acc + (enMonedaCompra(p.monedaId)
+                ? Number(p.monto)
+                : Number(p.montoEnBs) / Number(compra.tipoCambio || 1)), 0);
             const saldoEnDivisa = totalCompraEnDivisa - pagadoEnDivisa;
-            if (dto.monedaId) {
+            const pagoEnMonedaCompra = enMonedaCompra(dto.monedaId);
+            if (dto.monedaId && pagoEnMonedaCompra) {
                 if (Number(dto.monto) > saldoEnDivisa + 0.001) {
                     throw new common_1.BadRequestException(`El monto (${dto.monto} ${compra.moneda}) supera el saldo pendiente (${saldoEnDivisa.toFixed(4)} ${compra.moneda})`);
                 }
@@ -834,34 +848,48 @@ let ComprasService = class ComprasService {
             else {
                 const saldoEnBs = saldoEnDivisa * Number(compra.tipoCambio || 1);
                 if (montoEnBs > saldoEnBs + 0.01) {
-                    throw new common_1.BadRequestException(`Compra en ${compra.moneda} pero pago en Bs. El monto (Bs ${montoEnBs.toFixed(2)}) supera el saldo (Bs ${saldoEnBs.toFixed(2)})`);
+                    throw new common_1.BadRequestException(`Compra en ${compra.moneda}: el pago equivale a Bs ${montoEnBs.toFixed(2)} y supera el saldo (Bs ${saldoEnBs.toFixed(2)})`);
                 }
             }
         }
-        const pago = await this.pagoRepo.save(this.pagoRepo.create({
-            clienteId,
-            compraId,
-            proveedorId: compra.proveedorId,
-            fecha: dto.fecha,
-            monto: dto.monto,
-            metodoPago: dto.metodoPago,
-            monedaId: dto.monedaId || undefined,
-            tipoCambio: tc,
-            montoEnBs,
-            referencia: dto.referencia,
-            notas: dto.notas,
-            fuenteId: dto.fuenteId || undefined,
-            estado: constants_1.Status.ACTIVE,
-            transaccion: constants_1.Transacccion.CREAR,
-            usuarioCreacion: usuarioId,
-        }));
-        if (dto.fuenteId) {
-            const monedaLabel = dto.monedaId && tc !== 1
-                ? ` · ${dto.monto} @ TC ${tc.toFixed(4)}`
-                : '';
-            const mov = await this.movimientosFuenteService.registrarExterno(clienteId, dto.fuenteId, movimiento_fuente_entity_1.TipoMovimiento.EGRESO, `Pago proveedor — ${compra.nroCompra || compraId}${monedaLabel}${dto.referencia ? ' · ' + dto.referencia : ''}`, Number(dto.monto), dto.monedaId, tc, dto.fecha, movimiento_fuente_entity_1.CategoriaMovimiento.PAGO_PROVEEDOR, 'PAGO_PROVEEDOR', pago.id, usuarioId);
-            await this.pagoRepo.update(pago.id, { movimientoFuenteId: mov.id });
-        }
+        const { pago } = await this.pagoRepo.manager.transaction(async (m) => {
+            const pagoRepo = m.getRepository(pago_proveedor_entity_1.PagoProveedor);
+            const pago = await pagoRepo.save(pagoRepo.create({
+                ...(0, conversion_moneda_1.camposConversion)(conv),
+                clienteId,
+                compraId,
+                proveedorId: compra.proveedorId,
+                fecha: dto.fecha,
+                monto: dto.monto,
+                metodoPago: dto.metodoPago,
+                monedaId: dto.monedaId || undefined,
+                montoEnBs,
+                referencia: dto.referencia,
+                notas: dto.notas,
+                fuenteId: dto.fuenteId || undefined,
+                estado: constants_1.Status.ACTIVE,
+                transaccion: constants_1.Transacccion.CREAR,
+                usuarioCreacion: usuarioId,
+            }));
+            if (dto.fuenteId) {
+                const monedaLabel = dto.monedaId && tc !== 1
+                    ? ` · ${dto.monto} → Bs ${montoEnBs.toFixed(2)}`
+                    : '';
+                const mov = await this.movimientosFuenteService.reemplazarExterno(clienteId, 'PAGO_PROVEEDOR', pago.id, {
+                    fuenteId: dto.fuenteId,
+                    tipo: movimiento_fuente_entity_1.TipoMovimiento.EGRESO,
+                    concepto: `Pago proveedor — ${compra.nroCompra || compraId}${monedaLabel}${dto.referencia ? ' · ' + dto.referencia : ''}`,
+                    fecha: dto.fecha,
+                    categoria: movimiento_fuente_entity_1.CategoriaMovimiento.PAGO_PROVEEDOR,
+                    monedaPagoId: dto.monedaId,
+                    total: Number(dto.monto),
+                    conversion: conv,
+                }, usuarioId, m);
+                if (mov)
+                    await pagoRepo.update(pago.id, { movimientoFuenteId: mov.id });
+            }
+            return { pago };
+        });
         await this.recalcularPago(clienteId, compraId, usuarioId);
         const monedaLabel = dto.monedaId && tc !== 1 ? ` (TC: ${tc})` : '';
         await this.log(clienteId, compraId, compra_log_entity_1.TipoLog.PAGO, null, null, `Pago registrado: ${dto.metodoPago} ${dto.monto}${monedaLabel} = Bs ${montoEnBs.toFixed(2)}${dto.fuenteId ? ' · Fuente: ' + dto.fuenteId : ''}${dto.referencia ? ' · Ref: ' + dto.referencia : ''}`, usuarioId);
@@ -877,7 +905,7 @@ let ComprasService = class ComprasService {
             await this.movimientosFuenteService.cancelarPorOrigen(clienteId, 'PAGO_PROVEEDOR', pagoId, usuarioId);
         }
         await this.recalcularPago(clienteId, compraId, usuarioId);
-        await this.log(clienteId, compraId, compra_log_entity_1.TipoLog.PAGO, null, null, `Pago eliminado: ${pago.metodoPago} Bs ${pago.monto}`, usuarioId);
+        await this.log(clienteId, compraId, compra_log_entity_1.TipoLog.PAGO, null, null, `Pago eliminado: ${pago.metodoPago} Bs ${Number(pago.montoEnBs ?? pago.monto).toFixed(2)}`, usuarioId);
     }
     async resumenPagosProveedores(clienteId) {
         return this.compraRepo

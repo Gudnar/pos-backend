@@ -6,11 +6,17 @@ export declare class PagoProveedorImportacion extends AuditoriaEntity {
     monedaId: string;
     monto: number;
     tipoCambio: number;
+    tcPaso1?: number;
+    tcOperacion?: string;
+    monedaIntermediaId?: string | null;
+    montoIntermedio?: number | null;
+    tcPaso2?: number | null;
+    tcPaso2Operacion?: string | null;
     montoMonedaBase?: number;
     fechaPago: string;
     metodoPago: string;
     referencia?: string;
     observaciones?: string;
-    fuenteId?: string;
+    fuenteId?: string | null;
     constructor(data?: Partial<PagoProveedorImportacion>);
 }

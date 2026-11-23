@@ -19,6 +19,7 @@ type OpcionesVenta = {
         metodoPago: string;
         monto: number;
         referencia?: string;
+        fuenteId?: string;
     }[];
     cotizacionId?: string;
 };
@@ -36,6 +37,8 @@ export declare class VentasService {
     obtener(clienteId: string, id: string): Promise<any>;
     crear(clienteId: string, dto: CrearVentaDto, usuarioId: string, opciones?: OpcionesVenta): Promise<Venta>;
     registrarDesdePOS(clienteId: string, dto: VentaPosDto, usuarioId: string, conCobro: boolean): Promise<Venta>;
+    fuentesCobro(clienteId: string): Promise<any[]>;
+    private validarFuentesCobro;
     anular(clienteId: string, id: string, dto: AnularVentaDto, usuarioModificacion: string): Promise<Venta>;
     private _ordenPicking;
 }

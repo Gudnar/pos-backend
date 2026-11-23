@@ -195,6 +195,19 @@ export class AnularCompraDto {
 }
 
 export class CreatePagoProveedorDto {
+  // Conversión: tipoCambio es el TC del paso 1; opcionalmente un segundo paso vía moneda intermedia
+  @IsOptional() @IsIn(['MULTIPLICAR', 'DIVIDIR'])
+  tcOperacion?: string
+
+  @IsOptional() @IsUUID()
+  monedaIntermediaId?: string | null
+
+  @IsOptional() @IsNumber() @Min(0)
+  tcPaso2?: number | null
+
+  @IsOptional() @IsIn(['MULTIPLICAR', 'DIVIDIR'])
+  tcPaso2Operacion?: string | null
+
   @IsDateString()
   fecha: string
 

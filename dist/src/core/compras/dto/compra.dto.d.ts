@@ -73,6 +73,10 @@ export declare class AnularCompraDto {
     motivo?: string;
 }
 export declare class CreatePagoProveedorDto {
+    tcOperacion?: string;
+    monedaIntermediaId?: string | null;
+    tcPaso2?: number | null;
+    tcPaso2Operacion?: string | null;
     fecha: string;
     monto: number;
     metodoPago: string;

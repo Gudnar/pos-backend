@@ -6,6 +6,7 @@ export declare class GastosLogisticaService {
     private readonly repo;
     private readonly movimientosSvc;
     constructor(repo: Repository<GastoLogistica>, movimientosSvc: MovimientosFuenteService);
+    private sincronizarEgreso;
     listar(clienteId: string, ordenId: string): Promise<GastoLogistica[]>;
     obtener(clienteId: string, ordenId: string, id: string): Promise<GastoLogistica>;
     crear(clienteId: string, ordenId: string, dto: CreateGastoLogisticaDto, usuarioCreacion: string): Promise<GastoLogistica>;

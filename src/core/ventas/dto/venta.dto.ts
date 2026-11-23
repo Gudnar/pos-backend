@@ -74,6 +74,10 @@ export class PagoVentaDto {
 
   @IsOptional() @Transform(({ value }) => value || undefined) @IsUUID()
   adelantoId?: string
+
+  // Fuente de fondos donde entra el dinero (no aplica al adelanto: ya se recibió antes)
+  @IsOptional() @Transform(({ value }) => value || undefined) @IsUUID()
+  fuenteId?: string
 }
 
 /** Venta registrada desde el POS: con cobro (uno o varios métodos) o sin cobro (deuda). */

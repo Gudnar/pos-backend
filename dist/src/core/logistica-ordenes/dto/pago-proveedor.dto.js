@@ -14,6 +14,27 @@ const class_validator_1 = require("class-validator");
 class CreatePagoProveedorDto {
 }
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", String)
+], CreatePagoProveedorDto.prototype, "tcOperacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], CreatePagoProveedorDto.prototype, "monedaIntermediaId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], CreatePagoProveedorDto.prototype, "tcPaso2", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", Object)
+], CreatePagoProveedorDto.prototype, "tcPaso2Operacion", void 0);
+__decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreatePagoProveedorDto.prototype, "monedaId", void 0);
@@ -50,15 +71,36 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], CreatePagoProveedorDto.prototype, "fuenteId", void 0);
 exports.CreatePagoProveedorDto = CreatePagoProveedorDto;
 class UpdatePagoProveedorDto {
 }
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
     __metadata("design:type", String)
+], UpdatePagoProveedorDto.prototype, "tcOperacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], UpdatePagoProveedorDto.prototype, "monedaIntermediaId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], UpdatePagoProveedorDto.prototype, "tcPaso2", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", Object)
+], UpdatePagoProveedorDto.prototype, "tcPaso2Operacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
 ], UpdatePagoProveedorDto.prototype, "fuenteId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

@@ -142,6 +142,12 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], PagoVentaDto.prototype, "adelantoId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value || undefined),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], PagoVentaDto.prototype, "fuenteId", void 0);
 exports.PagoVentaDto = PagoVentaDto;
 class VentaPosDto {
 }

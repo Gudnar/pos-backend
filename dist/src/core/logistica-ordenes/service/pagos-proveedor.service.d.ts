@@ -9,6 +9,7 @@ export declare class PagosProveedorService {
     private readonly movimientosSvc;
     constructor(repo: Repository<PagoProveedorImportacion>, ordenRepo: Repository<OrdenImportacion>, movimientosSvc: MovimientosFuenteService);
     private validarLimite;
+    private sincronizarEgreso;
     listar(clienteId: string, ordenId: string): Promise<PagoProveedorImportacion[]>;
     obtener(clienteId: string, ordenId: string, id: string): Promise<PagoProveedorImportacion>;
     crear(clienteId: string, ordenId: string, dto: CreatePagoProveedorDto, usuarioCreacion: string): Promise<PagoProveedorImportacion>;

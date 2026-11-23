@@ -1,7 +1,19 @@
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { MovimientoFuente } from '../entity/movimiento-fuente.entity';
 import { Fuente } from '../entity/fuente.entity';
 import { CreateMovimientoFuenteDto, CreateTransferenciaDto, UpdateMovimientoFuenteDto } from '../dto/movimiento-fuente.dto';
+import { aCentavos, ResultadoConversion } from '../../../common/lib/conversion-moneda';
+export { aCentavos };
+export interface MovimientoExternoConversion {
+    fuenteId: string;
+    tipo: string;
+    concepto: string;
+    fecha: string;
+    categoria: string;
+    monedaPagoId?: string | null;
+    total: number;
+    conversion: ResultadoConversion;
+}
 export declare class MovimientosFuenteService {
     private readonly repo;
     private readonly fuenteRepo;
@@ -24,5 +36,7 @@ export declare class MovimientosFuenteService {
     }>;
     actualizar(clienteId: string, fuenteId: string, id: string, dto: UpdateMovimientoFuenteDto, usuarioModificacion: string): Promise<MovimientoFuente>;
     eliminar(clienteId: string, fuenteId: string, id: string, usuarioModificacion: string): Promise<void>;
+    private montoEnMonedaFuente;
+    reemplazarExterno(clienteId: string, origenTipo: string, origenId: string, nuevo: MovimientoExternoConversion | null, usuario: string, manager?: EntityManager): Promise<MovimientoFuente | null>;
     cancelarPorOrigen(clienteId: string, origenTipo: string, origenId: string, usuarioModificacion: string): Promise<void>;
 }

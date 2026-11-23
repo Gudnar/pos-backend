@@ -24,6 +24,8 @@ const producto_entity_1 = require("../../productos/entity/producto.entity");
 const caja_sesion_entity_1 = require("../../caja/entity/caja-sesion.entity");
 const venta_pago_entity_1 = require("../entity/venta-pago.entity");
 const cotizaciones_service_1 = require("./cotizaciones.service");
+const movimiento_fuente_entity_1 = require("../../fuentes/entity/movimiento-fuente.entity");
+const venta_pagos_service_1 = require("./venta-pagos.service");
 const ingresos_service_1 = require("../../ingresos/service/ingresos.service");
 const constants_1 = require("../../../common/constants");
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -211,11 +213,22 @@ let VentasService = class VentasService {
             for (const p of opciones.pagos || []) {
                 if (!(p.monto > 0))
                     continue;
-                await manager.save(venta_pago_entity_1.VentaPago, manager.create(venta_pago_entity_1.VentaPago, {
+                const pago = await manager.save(venta_pago_entity_1.VentaPago, manager.create(venta_pago_entity_1.VentaPago, {
                     clienteId, ventaId: venta.id, origen: venta_pago_entity_1.OrigenPagoVenta.POS,
                     fecha: venta.fecha, metodoPago: p.metodoPago, monto: p.monto, referencia: p.referencia || undefined,
+                    fuenteId: p.fuenteId,
                     estado: constants_1.Status.ACTIVE, transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioId,
                 }));
+                if (p.fuenteId) {
+                    await manager.save(movimiento_fuente_entity_1.MovimientoFuente, manager.create(movimiento_fuente_entity_1.MovimientoFuente, {
+                        clienteId, fuenteId: p.fuenteId, tipo: movimiento_fuente_entity_1.TipoMovimiento.INGRESO,
+                        concepto: `Cobro venta ${venta.nroVenta}${venta.nombreCliente ? ` - ${venta.nombreCliente}` : ''} (${ETIQUETA_PAGO[p.metodoPago] || p.metodoPago}${p.referencia ? `, ref. ${p.referencia}` : ''})`,
+                        referencia: venta.nroVenta, monto: p.monto, tipoCambio: 1, montoNativo: p.monto,
+                        fecha: venta.fecha, categoria: movimiento_fuente_entity_1.CategoriaMovimiento.INGRESO_VENTA,
+                        origenTipo: venta_pagos_service_1.ORIGEN_MOV_PAGO, origenId: pago.id,
+                        estado: constants_1.Status.ACTIVE, transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioId,
+                    }));
+                }
             }
             if (dto.cajaSesionId) {
                 await manager.increment(caja_sesion_entity_1.CajaSesion, { id: dto.cajaSesionId }, 'totalVentas', opciones.montoEfectivoCaja ?? total);
@@ -237,6 +250,7 @@ let VentasService = class VentasService {
         }
         const total = r2(dto.detalles.reduce((s, d) => s + Number(d.precioUnitario) * Number(d.cantidad) - Number(d.descuento || 0), 0));
         const pagos = conCobro ? (dto.pagos || []).filter(p => Number(p.monto) > 0) : [];
+        await this.validarFuentesCobro(clienteId, pagos);
         const adelantos = pagos.filter(p => p.metodoPago === 'ADELANTO');
         if (adelantos.length > 1)
             throw new common_1.BadRequestException('Solo se puede aplicar un adelanto por venta');
@@ -285,7 +299,7 @@ let VentasService = class VentasService {
                 monto = r2(monto - descuento);
                 cambioPendiente = r2(cambioPendiente - descuento);
             }
-            return { metodoPago: p.metodoPago, monto, referencia: p.referencia };
+            return { metodoPago: p.metodoPago, monto, referencia: p.referencia, fuenteId: p.metodoPago === 'ADELANTO' ? undefined : p.fuenteId };
         }).reverse();
         return this.crear(clienteId, ventaDto, usuarioId, {
             cotizacionId: dto.cotizacionId,
@@ -298,6 +312,25 @@ let VentasService = class VentasService {
             nitCi: dto.nitCi,
             telefonoCliente: dto.telefonoCliente,
         });
+    }
+    async fuentesCobro(clienteId) {
+        const schema = process.env.DB_SCHEMA || 'public';
+        return this.dataSource.query(`SELECT id, nombre, tipo FROM ${schema}.fuente WHERE cliente_id = $1 AND activo = true AND _estado = $2 ORDER BY nombre`, [clienteId, constants_1.Status.ACTIVE]);
+    }
+    async validarFuentesCobro(clienteId, pagos) {
+        const conDinero = pagos.filter(p => p.metodoPago !== 'ADELANTO');
+        if (!conDinero.length)
+            return;
+        const fuentes = await this.fuentesCobro(clienteId);
+        if (!fuentes.length)
+            return;
+        const validas = new Set(fuentes.map((f) => f.id));
+        for (const p of conDinero) {
+            if (!p.fuenteId)
+                throw new common_1.BadRequestException(`Indica la fuente de fondos del pago en ${ETIQUETA_PAGO[p.metodoPago] || p.metodoPago}`);
+            if (!validas.has(p.fuenteId))
+                throw new common_1.BadRequestException('Fuente de fondos no válida o inactiva');
+        }
     }
     async anular(clienteId, id, dto, usuarioModificacion) {
         return this.dataSource.transaction(async (manager) => {

@@ -21,6 +21,9 @@ const orden_importacion_entity_1 = require("../entity/orden-importacion.entity")
 const constants_1 = require("../../../common/constants");
 const response_messages_1 = require("../../../common/constants/response-messages");
 const movimientos_fuente_service_1 = require("../../fuentes/service/movimientos-fuente.service");
+const conversion_moneda_1 = require("../../../common/lib/conversion-moneda");
+const ORIGEN = 'logistica_pago';
+const baseDePago = (p) => p.montoMonedaBase != null ? Number(p.montoMonedaBase) : Number(p.monto) * Number(p.tipoCambio);
 let PagosProveedorService = class PagosProveedorService {
     constructor(repo, ordenRepo, movimientosSvc) {
         this.repo = repo;
@@ -35,16 +38,29 @@ let PagosProveedorService = class PagosProveedorService {
         const totalGastos = Number(orden.totalGastosMonedaBase ?? 0);
         const montoTotal = totalProductos + totalGastos;
         if (montoTotal === 0)
-            return;
+            return orden;
         const pagos = await this.repo.find({ where: { ordenImportacionId: ordenId, clienteId, estado: constants_1.Status.ACTIVE } });
-        const totalExistente = pagos
-            .filter(p => p.id !== excluirId)
-            .reduce((s, p) => s + Number(p.monto) * Number(p.tipoCambio), 0);
+        const totalExistente = pagos.filter(p => p.id !== excluirId).reduce((s, p) => s + baseDePago(p), 0);
         const nuevoTotal = totalExistente + nuevoMontoBase;
         if (nuevoTotal > montoTotal + 0.01) {
             const pendiente = Math.max(0, montoTotal - totalExistente);
             throw new common_1.BadRequestException(`El pago excede el monto pendiente. Total adeudado: ${montoTotal.toFixed(2)}, Pagado: ${totalExistente.toFixed(2)}, Pendiente: ${pendiente.toFixed(2)} — Intenta pagar: ${nuevoMontoBase.toFixed(2)}`);
         }
+        return orden;
+    }
+    async sincronizarEgreso(clienteId, pago, conv, orden, usuario, manager) {
+        await this.movimientosSvc.reemplazarExterno(clienteId, ORIGEN, pago.id, pago.fuenteId
+            ? {
+                fuenteId: pago.fuenteId,
+                tipo: 'EGRESO',
+                concepto: `Pago proveedor — Orden ${orden.numero || 'logística'}${pago.referencia ? ' · ' + pago.referencia : ''}`,
+                fecha: pago.fechaPago,
+                categoria: 'PAGO_PROVEEDOR',
+                monedaPagoId: pago.monedaId,
+                total: Number(pago.monto),
+                conversion: conv,
+            }
+            : null, usuario, manager);
     }
     async listar(clienteId, ordenId) {
         return this.repo.find({
@@ -59,49 +75,57 @@ let PagosProveedorService = class PagosProveedorService {
         return p;
     }
     async crear(clienteId, ordenId, dto, usuarioCreacion) {
-        await this.validarLimite(clienteId, ordenId, Number(dto.monto) * Number(dto.tipoCambio));
-        const { fuenteId, ...pagoData } = dto;
-        const pago = await this.repo.save(this.repo.create({
-            ...pagoData,
-            clienteId,
-            ordenImportacionId: ordenId,
-            montoMonedaBase: Number(dto.monto) * Number(dto.tipoCambio),
-            metodoPago: dto.metodoPago ?? 'TRANSFERENCIA',
-            fuenteId: fuenteId || undefined,
-            estado: constants_1.Status.ACTIVE,
-            transaccion: constants_1.Transacccion.CREAR,
-            usuarioCreacion,
-        }));
-        if (fuenteId) {
-            await this.movimientosSvc.registrarExterno(clienteId, fuenteId, 'EGRESO', `Pago proveedor — Orden logística`, Number(dto.monto), dto.monedaId, Number(dto.tipoCambio), dto.fechaPago, 'PAGO_PROVEEDOR', 'logistica_pago', pago.id, usuarioCreacion);
-        }
-        return pago;
+        const conv = (0, conversion_moneda_1.calcularConversion)(Number(dto.monto), dto);
+        const orden = await this.validarLimite(clienteId, ordenId, conv.montoBase);
+        const { fuenteId, tcOperacion, monedaIntermediaId, tcPaso2, tcPaso2Operacion, ...pagoData } = dto;
+        return this.repo.manager.transaction(async (m) => {
+            const repo = m.getRepository(pago_proveedor_importacion_entity_1.PagoProveedorImportacion);
+            const pago = await repo.save(repo.create({
+                ...pagoData,
+                ...(0, conversion_moneda_1.camposConversion)(conv),
+                clienteId,
+                ordenImportacionId: ordenId,
+                montoMonedaBase: conv.montoBase,
+                metodoPago: dto.metodoPago ?? 'TRANSFERENCIA',
+                fuenteId: fuenteId || undefined,
+                estado: constants_1.Status.ACTIVE,
+                transaccion: constants_1.Transacccion.CREAR,
+                usuarioCreacion,
+            }));
+            if (pago.fuenteId)
+                await this.sincronizarEgreso(clienteId, pago, conv, orden, usuarioCreacion, m);
+            return pago;
+        });
     }
     async actualizar(clienteId, ordenId, id, dto, usuarioModificacion) {
         const p = await this.obtener(clienteId, ordenId, id);
-        const nuevoMonto = Number(dto.monto ?? p.monto);
-        const nuevoTc = Number(dto.tipoCambio ?? p.tipoCambio);
-        await this.validarLimite(clienteId, ordenId, nuevoMonto * nuevoTc, id);
-        const { fuenteId, ...rest } = dto;
-        const nuevaFuente = fuenteId || undefined;
-        Object.assign(p, rest);
-        p.montoMonedaBase = Number(p.monto) * Number(p.tipoCambio);
-        if (nuevaFuente !== undefined)
-            p.fuenteId = nuevaFuente;
+        const { fuenteId, tcOperacion, monedaIntermediaId, tcPaso2, tcPaso2Operacion, ...rest } = dto;
+        const monto = Number(dto.monto ?? p.monto);
+        const conv = (0, conversion_moneda_1.calcularConversion)(monto, {
+            tipoCambio: dto.tipoCambio ?? (p.tcPaso1 != null ? Number(p.tcPaso1) : Number(p.tipoCambio)),
+            tcOperacion: tcOperacion ?? p.tcOperacion,
+            monedaIntermediaId: monedaIntermediaId !== undefined ? monedaIntermediaId : p.monedaIntermediaId,
+            tcPaso2: tcPaso2 !== undefined ? tcPaso2 : p.tcPaso2,
+            tcPaso2Operacion: tcPaso2Operacion !== undefined ? tcPaso2Operacion : p.tcPaso2Operacion,
+        });
+        const orden = await this.validarLimite(clienteId, ordenId, conv.montoBase, id);
+        const teniaFuente = !!p.fuenteId;
+        Object.assign(p, rest, (0, conversion_moneda_1.camposConversion)(conv), { monto, montoMonedaBase: conv.montoBase });
+        if (fuenteId !== undefined)
+            p.fuenteId = fuenteId || null;
         Object.assign(p, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
-        const saved = await this.repo.save(p);
-        if (nuevaFuente) {
-            await this.movimientosSvc.registrarExterno(clienteId, nuevaFuente, 'EGRESO', `Pago proveedor actualizado — Orden logística`, Number(saved.monto), saved.monedaId, Number(saved.tipoCambio), saved.fechaPago, 'PAGO_PROVEEDOR', 'logistica_pago', saved.id, usuarioModificacion);
-        }
-        return saved;
+        return this.repo.manager.transaction(async (m) => {
+            const saved = await m.getRepository(pago_proveedor_importacion_entity_1.PagoProveedorImportacion).save(p);
+            if (saved.fuenteId || teniaFuente)
+                await this.sincronizarEgreso(clienteId, saved, conv, orden, usuarioModificacion, m);
+            return saved;
+        });
     }
     async eliminar(clienteId, ordenId, id, usuarioModificacion) {
         const p = await this.obtener(clienteId, ordenId, id);
         Object.assign(p, { estado: constants_1.Status.ELIMINATE, transaccion: constants_1.Transacccion.ELIMINAR, usuarioModificacion });
         await this.repo.save(p);
-        if (p.fuenteId) {
-            await this.movimientosSvc.cancelarPorOrigen(clienteId, 'logistica_pago', id, usuarioModificacion);
-        }
+        await this.movimientosSvc.cancelarPorOrigen(clienteId, ORIGEN, id, usuarioModificacion);
     }
 };
 PagosProveedorService = __decorate([

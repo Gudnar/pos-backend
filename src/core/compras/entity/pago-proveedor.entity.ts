@@ -41,8 +41,27 @@ export class PagoProveedor extends AuditoriaEntity {
   @Column({ name: 'moneda_id', type: 'uuid', nullable: true })
   monedaId?: string
 
-  @Column({ name: 'tipo_cambio', type: 'decimal', precision: 14, scale: 6, default: 1 })
+  @Column({ name: 'tipo_cambio', type: 'decimal', precision: 20, scale: 12, default: 1 })
   tipoCambio: number
+
+  // ── Conversión (directa o en dos pasos) ──
+  @Column({ name: 'tc_paso1', type: 'decimal', precision: 20, scale: 10, nullable: true })
+  tcPaso1?: number
+
+  @Column({ name: 'tc_operacion', type: 'varchar', length: 12, nullable: true })
+  tcOperacion?: string
+
+  @Column({ name: 'moneda_intermedia_id', type: 'uuid', nullable: true })
+  monedaIntermediaId?: string | null
+
+  @Column({ name: 'monto_intermedio', type: 'decimal', precision: 18, scale: 2, nullable: true })
+  montoIntermedio?: number | null
+
+  @Column({ name: 'tc_paso2', type: 'decimal', precision: 20, scale: 10, nullable: true })
+  tcPaso2?: number | null
+
+  @Column({ name: 'tc_paso2_operacion', type: 'varchar', length: 12, nullable: true })
+  tcPaso2Operacion?: string | null
 
   @Column({ name: 'monto_en_bs', type: 'decimal', precision: 14, scale: 2, nullable: true })
   montoEnBs?: number

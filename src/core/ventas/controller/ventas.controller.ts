@@ -46,6 +46,13 @@ export class VentasController {
     return { finalizado: true, mensaje: 'OK', datos }
   }
 
+  // Antes de ':id' para que no se tome como un id de venta
+  @Get('fuentes-cobro')
+  async fuentesCobro(@Req() req: any) {
+    const datos = await this.svc.fuentesCobro(req.user.clienteId)
+    return { finalizado: true, mensaje: 'OK', datos }
+  }
+
   @Get(':id')
   async obtener(@Req() req: any, @Param('id') id: string) {
     const venta = await this.svc.obtener(req.user.clienteId, id)

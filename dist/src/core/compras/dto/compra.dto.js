@@ -324,6 +324,27 @@ exports.AnularCompraDto = AnularCompraDto;
 class CreatePagoProveedorDto {
 }
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", String)
+], CreatePagoProveedorDto.prototype, "tcOperacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], CreatePagoProveedorDto.prototype, "monedaIntermediaId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], CreatePagoProveedorDto.prototype, "tcPaso2", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", Object)
+], CreatePagoProveedorDto.prototype, "tcPaso2Operacion", void 0);
+__decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreatePagoProveedorDto.prototype, "fecha", void 0);

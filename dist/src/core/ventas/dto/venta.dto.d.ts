@@ -26,6 +26,7 @@ export declare class PagoVentaDto {
     monto: number;
     referencia?: string;
     adelantoId?: string;
+    fuenteId?: string;
 }
 export declare class VentaPosDto {
     sucursalId: string;

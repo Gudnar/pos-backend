@@ -18,6 +18,12 @@ export declare class PagoProveedor extends AuditoriaEntity {
     notas?: string;
     monedaId?: string;
     tipoCambio: number;
+    tcPaso1?: number;
+    tcOperacion?: string;
+    monedaIntermediaId?: string | null;
+    montoIntermedio?: number | null;
+    tcPaso2?: number | null;
+    tcPaso2Operacion?: string | null;
     montoEnBs?: number;
     fuenteId?: string;
     movimientoFuenteId?: string;

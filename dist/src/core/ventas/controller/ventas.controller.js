@@ -42,6 +42,10 @@ let VentasController = class VentasController {
         const datos = ventas.map(v => ({ ...v, documentos: docs.get(v.id) || [], totalComisiones: comisiones.get(v.id) || 0 }));
         return { finalizado: true, mensaje: 'OK', datos };
     }
+    async fuentesCobro(req) {
+        const datos = await this.svc.fuentesCobro(req.user.clienteId);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
     async obtener(req, id) {
         const venta = await this.svc.obtener(req.user.clienteId, id);
         const documentos = await this.docsSvc.listar(req.user.clienteId, id);
@@ -160,6 +164,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], VentasController.prototype, "listar", null);
+__decorate([
+    (0, common_1.Get)('fuentes-cobro'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "fuentesCobro", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Req)()),

@@ -67,9 +67,33 @@ __decorate([
     __metadata("design:type", String)
 ], PagoProveedor.prototype, "monedaId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'tipo_cambio', type: 'decimal', precision: 14, scale: 6, default: 1 }),
+    (0, typeorm_1.Column)({ name: 'tipo_cambio', type: 'decimal', precision: 20, scale: 12, default: 1 }),
     __metadata("design:type", Number)
 ], PagoProveedor.prototype, "tipoCambio", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_paso1', type: 'decimal', precision: 20, scale: 10, nullable: true }),
+    __metadata("design:type", Number)
+], PagoProveedor.prototype, "tcPaso1", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_operacion', type: 'varchar', length: 12, nullable: true }),
+    __metadata("design:type", String)
+], PagoProveedor.prototype, "tcOperacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'moneda_intermedia_id', type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], PagoProveedor.prototype, "monedaIntermediaId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'monto_intermedio', type: 'decimal', precision: 18, scale: 2, nullable: true }),
+    __metadata("design:type", Object)
+], PagoProveedor.prototype, "montoIntermedio", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_paso2', type: 'decimal', precision: 20, scale: 10, nullable: true }),
+    __metadata("design:type", Object)
+], PagoProveedor.prototype, "tcPaso2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_paso2_operacion', type: 'varchar', length: 12, nullable: true }),
+    __metadata("design:type", Object)
+], PagoProveedor.prototype, "tcPaso2Operacion", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'monto_en_bs', type: 'decimal', precision: 14, scale: 2, nullable: true }),
     __metadata("design:type", Number)

@@ -1,4 +1,8 @@
 export declare class CreateGastoLogisticaDto {
+    tcOperacion?: string;
+    monedaIntermediaId?: string | null;
+    tcPaso2?: number | null;
+    tcPaso2Operacion?: string | null;
     tipoGastoId?: string;
     descripcion: string;
     monedaId: string;
@@ -9,10 +13,14 @@ export declare class CreateGastoLogisticaDto {
     pais?: string;
     comprobante?: string;
     observaciones?: string;
-    fuenteId?: string;
+    fuenteId?: string | null;
 }
 export declare class UpdateGastoLogisticaDto {
-    fuenteId?: string;
+    tcOperacion?: string;
+    monedaIntermediaId?: string | null;
+    tcPaso2?: number | null;
+    tcPaso2Operacion?: string | null;
+    fuenteId?: string | null;
     tipoGastoId?: string;
     descripcion?: string;
     monedaId?: string;

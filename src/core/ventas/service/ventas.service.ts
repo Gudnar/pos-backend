@@ -9,6 +9,8 @@ import { Producto } from '../../productos/entity/producto.entity'
 import { CajaSesion, EstadoSesion } from '../../caja/entity/caja-sesion.entity'
 import { VentaPago, OrigenPagoVenta } from '../entity/venta-pago.entity'
 import { CotizacionesService } from './cotizaciones.service'
+import { MovimientoFuente, TipoMovimiento as TipoMovFuente, CategoriaMovimiento } from '../../fuentes/entity/movimiento-fuente.entity'
+import { ORIGEN_MOV_PAGO } from './venta-pagos.service'
 import { IngresosService } from '../../ingresos/service/ingresos.service'
 import { Status, Transacccion } from '../../../common/constants'
 import { CrearVentaDto, AnularVentaDto, VentaPosDto } from '../dto/venta.dto'
@@ -23,7 +25,7 @@ type OpcionesVenta = {
   nitCi?: string
   telefonoCliente?: string
   // Pagos cobrados al registrar la venta (montos netos: el efectivo ya sin el cambio)
-  pagos?: { metodoPago: string; monto: number; referencia?: string }[]
+  pagos?: { metodoPago: string; monto: number; referencia?: string; fuenteId?: string }[]
   // Cotización que se convierte en esta venta
   cotizacionId?: string
 }
@@ -272,11 +274,23 @@ export class VentasService {
       // Pagos cobrados en el POS: quedan como primer(os) pago(s) de la venta
       for (const p of opciones.pagos || []) {
         if (!(p.monto > 0)) continue
-        await manager.save(VentaPago, manager.create(VentaPago, {
+        const pago = await manager.save(VentaPago, manager.create(VentaPago, {
           clienteId, ventaId: venta.id, origen: OrigenPagoVenta.POS,
           fecha: venta.fecha, metodoPago: p.metodoPago, monto: p.monto, referencia: p.referencia || undefined,
+          fuenteId: p.fuenteId,
           estado: Status.ACTIVE, transaccion: Transacccion.CREAR, usuarioCreacion: usuarioId,
         }))
+        // Ingreso en la fuente de fondos, dentro de la misma transacción que la venta
+        if (p.fuenteId) {
+          await manager.save(MovimientoFuente, manager.create(MovimientoFuente, {
+            clienteId, fuenteId: p.fuenteId, tipo: TipoMovFuente.INGRESO,
+            concepto: `Cobro venta ${venta.nroVenta}${venta.nombreCliente ? ` - ${venta.nombreCliente}` : ''} (${ETIQUETA_PAGO[p.metodoPago] || p.metodoPago}${p.referencia ? `, ref. ${p.referencia}` : ''})`,
+            referencia: venta.nroVenta, monto: p.monto, tipoCambio: 1, montoNativo: p.monto,
+            fecha: venta.fecha, categoria: CategoriaMovimiento.INGRESO_VENTA,
+            origenTipo: ORIGEN_MOV_PAGO, origenId: pago.id,
+            estado: Status.ACTIVE, transaccion: Transacccion.CREAR, usuarioCreacion: usuarioId,
+          } as any))
+        }
       }
 
       // Update caja session totals
@@ -309,6 +323,8 @@ export class VentasService {
     }
     const total = r2(dto.detalles.reduce((s, d) => s + Number(d.precioUnitario) * Number(d.cantidad) - Number(d.descuento || 0), 0))
     const pagos = conCobro ? (dto.pagos || []).filter(p => Number(p.monto) > 0) : []
+
+    await this.validarFuentesCobro(clienteId, pagos)
 
     const adelantos = pagos.filter(p => p.metodoPago === 'ADELANTO')
     if (adelantos.length > 1) throw new BadRequestException('Solo se puede aplicar un adelanto por venta')
@@ -361,7 +377,7 @@ export class VentasService {
         monto = r2(monto - descuento)
         cambioPendiente = r2(cambioPendiente - descuento)
       }
-      return { metodoPago: p.metodoPago, monto, referencia: p.referencia }
+      return { metodoPago: p.metodoPago, monto, referencia: p.referencia, fuenteId: p.metodoPago === 'ADELANTO' ? undefined : p.fuenteId }
     }).reverse()
 
     return this.crear(clienteId, ventaDto, usuarioId, {
@@ -375,6 +391,30 @@ export class VentasService {
       nitCi: dto.nitCi,
       telefonoCliente: dto.telefonoCliente,
     })
+  }
+
+  /** Fuentes activas para elegir dónde entra cada cobro (lista reducida: sin saldos). */
+  async fuentesCobro(clienteId: string): Promise<any[]> {
+    const schema = process.env.DB_SCHEMA || 'public'
+    return this.dataSource.query(
+      `SELECT id, nombre, tipo FROM ${schema}.fuente WHERE cliente_id = $1 AND activo = true AND _estado = $2 ORDER BY nombre`,
+      [clienteId, Status.ACTIVE])
+  }
+
+  /**
+   * Cada pago (salvo el adelanto) debe indicar a qué fuente de fondos entra, si la empresa tiene fuentes.
+   * Sin fuentes configuradas se permite cobrar igual (el dinero solo queda en la caja).
+   */
+  private async validarFuentesCobro(clienteId: string, pagos: { metodoPago: string; fuenteId?: string }[]) {
+    const conDinero = pagos.filter(p => p.metodoPago !== 'ADELANTO')
+    if (!conDinero.length) return
+    const fuentes = await this.fuentesCobro(clienteId)
+    if (!fuentes.length) return
+    const validas = new Set(fuentes.map((f: any) => f.id))
+    for (const p of conDinero) {
+      if (!p.fuenteId) throw new BadRequestException(`Indica la fuente de fondos del pago en ${ETIQUETA_PAGO[p.metodoPago] || p.metodoPago}`)
+      if (!validas.has(p.fuenteId)) throw new BadRequestException('Fuente de fondos no válida o inactiva')
+    }
   }
 
   async anular(clienteId: string, id: string, dto: AnularVentaDto, usuarioModificacion: string): Promise<Venta> {

@@ -29,7 +29,8 @@ export class FuentesService {
       .getRawOne()
     const entradas = Number(result?.entradas ?? 0)
     const salidas = Number(result?.salidas ?? 0)
-    return Number(saldoInicial) + entradas - salidas
+    // Escala 4 como en BD: evita arrastrar residuos de coma flotante (16816.929999…)
+    return Number((Number(saldoInicial) + entradas - salidas).toFixed(4))
   }
 
   async listar(clienteId: string): Promise<any[]> {

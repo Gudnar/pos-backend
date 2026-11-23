@@ -1,6 +1,19 @@
-import { IsDateString, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator'
+import { IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator'
 
 export class CreateGastoLogisticaDto {
+  // Conversión: tipoCambio es el TC del paso 1; opcionalmente un segundo paso vía moneda intermedia
+  @IsOptional() @IsIn(['MULTIPLICAR', 'DIVIDIR'])
+  tcOperacion?: string
+
+  @IsOptional() @IsUUID()
+  monedaIntermediaId?: string | null
+
+  @IsOptional() @IsNumber() @Min(0)
+  tcPaso2?: number | null
+
+  @IsOptional() @IsIn(['MULTIPLICAR', 'DIVIDIR'])
+  tcPaso2Operacion?: string | null
+
   @IsOptional() @IsUUID()
   tipoGastoId?: string
 
@@ -32,12 +45,25 @@ export class CreateGastoLogisticaDto {
   observaciones?: string
 
   @IsOptional() @IsUUID()
-  fuenteId?: string
+  fuenteId?: string | null
 }
 
 export class UpdateGastoLogisticaDto {
+  // Conversión: tipoCambio es el TC del paso 1; opcionalmente un segundo paso vía moneda intermedia
+  @IsOptional() @IsIn(['MULTIPLICAR', 'DIVIDIR'])
+  tcOperacion?: string
+
   @IsOptional() @IsUUID()
-  fuenteId?: string
+  monedaIntermediaId?: string | null
+
+  @IsOptional() @IsNumber() @Min(0)
+  tcPaso2?: number | null
+
+  @IsOptional() @IsIn(['MULTIPLICAR', 'DIVIDIR'])
+  tcPaso2Operacion?: string | null
+
+  @IsOptional() @IsUUID()
+  fuenteId?: string | null
 
   @IsOptional() @IsUUID()
   tipoGastoId?: string

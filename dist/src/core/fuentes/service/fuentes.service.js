@@ -38,7 +38,7 @@ let FuentesService = class FuentesService {
             .getRawOne();
         const entradas = Number(result?.entradas ?? 0);
         const salidas = Number(result?.salidas ?? 0);
-        return Number(saldoInicial) + entradas - salidas;
+        return Number((Number(saldoInicial) + entradas - salidas).toFixed(4));
     }
     async listar(clienteId) {
         const fuentes = await this.repo.find({

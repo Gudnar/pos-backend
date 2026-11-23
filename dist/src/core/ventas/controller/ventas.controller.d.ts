@@ -55,6 +55,11 @@ export declare class VentasController {
             fechaModificacion?: Date | null | undefined;
         }[];
     }>;
+    fuentesCobro(req: any): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: any[];
+    }>;
     obtener(req: any, id: string): Promise<{
         finalizado: boolean;
         mensaje: string;

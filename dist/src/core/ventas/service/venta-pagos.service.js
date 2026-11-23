@@ -128,8 +128,8 @@ let VentaPagosService = class VentaPagosService {
         });
     }
     async cancelarMovimientosDeVenta(clienteId, ventaId, usuarioId) {
-        const abonos = await this.pagoRepo.find({ where: { clienteId, ventaId, origen: venta_pago_entity_1.OrigenPagoVenta.ABONO, estado: constants_1.Status.ACTIVE } });
-        for (const p of abonos)
+        const pagos = await this.pagoRepo.find({ where: { clienteId, ventaId, estado: constants_1.Status.ACTIVE } });
+        for (const p of pagos)
             await this.movimientosSvc.cancelarPorOrigen(clienteId, exports.ORIGEN_MOV_PAGO, p.id, usuarioId);
     }
     async detallarPagoInicialConComprobante(clienteId, ventaId, file, usuarioId) {

@@ -20,10 +20,26 @@ const gasto_logistica_entity_1 = require("../entity/gasto-logistica.entity");
 const constants_1 = require("../../../common/constants");
 const response_messages_1 = require("../../../common/constants/response-messages");
 const movimientos_fuente_service_1 = require("../../fuentes/service/movimientos-fuente.service");
+const conversion_moneda_1 = require("../../../common/lib/conversion-moneda");
+const ORIGEN = 'logistica_gasto';
 let GastosLogisticaService = class GastosLogisticaService {
     constructor(repo, movimientosSvc) {
         this.repo = repo;
         this.movimientosSvc = movimientosSvc;
+    }
+    async sincronizarEgreso(clienteId, g, total, conv, usuario, manager) {
+        await this.movimientosSvc.reemplazarExterno(clienteId, ORIGEN, g.id, g.fuenteId
+            ? {
+                fuenteId: g.fuenteId,
+                tipo: 'EGRESO',
+                concepto: g.descripcion || 'Gasto logístico',
+                fecha: g.fechaGasto,
+                categoria: 'GASTO_LOGISTICA',
+                monedaPagoId: g.monedaId,
+                total,
+                conversion: conv,
+            }
+            : null, usuario, manager);
     }
     async listar(clienteId, ordenId) {
         return this.repo.find({
@@ -38,47 +54,59 @@ let GastosLogisticaService = class GastosLogisticaService {
         return g;
     }
     async crear(clienteId, ordenId, dto, usuarioCreacion) {
-        const { fuenteId, ...gastoData } = dto;
+        const { fuenteId, tcOperacion, monedaIntermediaId, tcPaso2, tcPaso2Operacion, ...gastoData } = dto;
         const cantidad = Number(dto.cantidad) || 1;
-        const gasto = await this.repo.save(this.repo.create({
-            ...gastoData,
-            clienteId,
-            ordenImportacionId: ordenId,
-            cantidad,
-            montoMonedaBase: Number(dto.monto) * cantidad * Number(dto.tipoCambio),
-            fuenteId: fuenteId || undefined,
-            estado: constants_1.Status.ACTIVE,
-            transaccion: constants_1.Transacccion.CREAR,
-            usuarioCreacion,
-        }));
-        if (fuenteId) {
-            await this.movimientosSvc.registrarExterno(clienteId, fuenteId, 'EGRESO', dto.descripcion ?? 'Gasto logístico', Number(dto.monto), dto.monedaId, Number(dto.tipoCambio), dto.fechaGasto, 'GASTO_LOGISTICA', 'logistica_gasto', gasto.id, usuarioCreacion);
-        }
-        return gasto;
+        const total = Number(dto.monto) * cantidad;
+        const conv = (0, conversion_moneda_1.calcularConversion)(total, dto);
+        return this.repo.manager.transaction(async (m) => {
+            const repo = m.getRepository(gasto_logistica_entity_1.GastoLogistica);
+            const gasto = await repo.save(repo.create({
+                ...gastoData,
+                ...(0, conversion_moneda_1.camposConversion)(conv),
+                clienteId,
+                ordenImportacionId: ordenId,
+                cantidad,
+                montoMonedaBase: conv.montoBase,
+                fuenteId: fuenteId || undefined,
+                estado: constants_1.Status.ACTIVE,
+                transaccion: constants_1.Transacccion.CREAR,
+                usuarioCreacion,
+            }));
+            if (gasto.fuenteId)
+                await this.sincronizarEgreso(clienteId, gasto, total, conv, usuarioCreacion, m);
+            return gasto;
+        });
     }
     async actualizar(clienteId, ordenId, id, dto, usuarioModificacion) {
         const g = await this.obtener(clienteId, ordenId, id);
-        const { fuenteId, ...rest } = dto;
-        const nuevaFuente = fuenteId || undefined;
+        const { fuenteId, tcOperacion, monedaIntermediaId, tcPaso2, tcPaso2Operacion, ...rest } = dto;
+        const teniaFuente = !!g.fuenteId;
         Object.assign(g, rest);
         const cantidad = Number(g.cantidad) || 1;
-        g.montoMonedaBase = Number(g.monto) * cantidad * Number(g.tipoCambio);
-        if (nuevaFuente !== undefined)
-            g.fuenteId = nuevaFuente;
+        const total = Number(g.monto) * cantidad;
+        const conv = (0, conversion_moneda_1.calcularConversion)(total, {
+            tipoCambio: dto.tipoCambio ?? (g.tcPaso1 != null ? Number(g.tcPaso1) : Number(g.tipoCambio)),
+            tcOperacion: tcOperacion ?? g.tcOperacion,
+            monedaIntermediaId: monedaIntermediaId !== undefined ? monedaIntermediaId : g.monedaIntermediaId,
+            tcPaso2: tcPaso2 !== undefined ? tcPaso2 : g.tcPaso2,
+            tcPaso2Operacion: tcPaso2Operacion !== undefined ? tcPaso2Operacion : g.tcPaso2Operacion,
+        });
+        Object.assign(g, (0, conversion_moneda_1.camposConversion)(conv), { cantidad, montoMonedaBase: conv.montoBase });
+        if (fuenteId !== undefined)
+            g.fuenteId = fuenteId || null;
         Object.assign(g, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
-        const saved = await this.repo.save(g);
-        if (nuevaFuente) {
-            await this.movimientosSvc.registrarExterno(clienteId, nuevaFuente, 'EGRESO', saved.descripcion ?? 'Gasto logístico actualizado', Number(saved.monto), saved.monedaId, Number(saved.tipoCambio), saved.fechaGasto, 'GASTO_LOGISTICA', 'logistica_gasto', saved.id, usuarioModificacion);
-        }
-        return saved;
+        return this.repo.manager.transaction(async (m) => {
+            const saved = await m.getRepository(gasto_logistica_entity_1.GastoLogistica).save(g);
+            if (saved.fuenteId || teniaFuente)
+                await this.sincronizarEgreso(clienteId, saved, total, conv, usuarioModificacion, m);
+            return saved;
+        });
     }
     async eliminar(clienteId, ordenId, id, usuarioModificacion) {
         const g = await this.obtener(clienteId, ordenId, id);
         Object.assign(g, { estado: constants_1.Status.ELIMINATE, transaccion: constants_1.Transacccion.ELIMINAR, usuarioModificacion });
         await this.repo.save(g);
-        if (g.fuenteId) {
-            await this.movimientosSvc.cancelarPorOrigen(clienteId, 'logistica_gasto', id, usuarioModificacion);
-        }
+        await this.movimientosSvc.cancelarPorOrigen(clienteId, ORIGEN, id, usuarioModificacion);
     }
 };
 GastosLogisticaService = __decorate([

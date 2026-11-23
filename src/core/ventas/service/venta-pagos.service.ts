@@ -137,10 +137,10 @@ export class VentaPagosService {
     })
   }
 
-  /** Al anular la venta, los cobros que entraron a fuentes de fondos se revierten. */
+  /** Al anular la venta, los cobros que entraron a fuentes de fondos (del POS y abonos) se revierten. */
   async cancelarMovimientosDeVenta(clienteId: string, ventaId: string, usuarioId: string): Promise<void> {
-    const abonos = await this.pagoRepo.find({ where: { clienteId, ventaId, origen: OrigenPagoVenta.ABONO, estado: Status.ACTIVE } })
-    for (const p of abonos) await this.movimientosSvc.cancelarPorOrigen(clienteId, ORIGEN_MOV_PAGO, p.id, usuarioId)
+    const pagos = await this.pagoRepo.find({ where: { clienteId, ventaId, estado: Status.ACTIVE } })
+    for (const p of pagos) await this.movimientosSvc.cancelarPorOrigen(clienteId, ORIGEN_MOV_PAGO, p.id, usuarioId)
   }
 
   /**
