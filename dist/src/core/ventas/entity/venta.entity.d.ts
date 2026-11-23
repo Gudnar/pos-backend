@@ -35,6 +35,7 @@ export declare class Venta extends AuditoriaEntity {
     observaciones?: string;
     adelantoId?: string;
     montoAdelanto?: number;
+    cotizacionId?: string | null;
     montoEfectivo?: number;
     nitCi?: string;
     telefonoCliente?: string;

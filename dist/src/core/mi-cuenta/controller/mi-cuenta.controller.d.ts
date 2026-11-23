@@ -1,8 +1,11 @@
+/// <reference types="multer" />
+import { LogoEmpresaService } from '../service/logo-empresa.service';
 import { MiCuentaService } from '../service/mi-cuenta.service';
 import { UpdateMiCuentaDto, CreateUsuarioClienteDto, UpdateUsuarioClienteDto, CreateRolClienteDto, UpdateRolClienteDto } from '../dto/mi-cuenta.dto';
 export declare class MiCuentaController {
     private readonly svc;
-    constructor(svc: MiCuentaService);
+    private readonly logoSvc;
+    constructor(svc: MiCuentaService, logoSvc: LogoEmpresaService);
     obtener(req: any): Promise<{
         finalizado: boolean;
         mensaje: string;
@@ -12,6 +15,18 @@ export declare class MiCuentaController {
         finalizado: boolean;
         mensaje: string;
         datos: import("../../cliente/entity/cliente.entity").Cliente;
+    }>;
+    subirLogo(req: any, file: Express.Multer.File): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: {
+            logoUrl: string;
+        };
+    }>;
+    quitarLogo(req: any): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: null;
     }>;
     listarRoles(req: any): Promise<{
         finalizado: boolean;

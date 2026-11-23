@@ -7,6 +7,8 @@ import { Lote, EstadoLote } from '../../lotes/entity/lote.entity'
 import { MovimientoStock, TipoMovimiento } from '../../movimientos-stock/entity/movimiento-stock.entity'
 import { Producto } from '../../productos/entity/producto.entity'
 import { CajaSesion, EstadoSesion } from '../../caja/entity/caja-sesion.entity'
+import { VentaPago, OrigenPagoVenta } from '../entity/venta-pago.entity'
+import { CotizacionesService } from './cotizaciones.service'
 import { IngresosService } from '../../ingresos/service/ingresos.service'
 import { Status, Transacccion } from '../../../common/constants'
 import { CrearVentaDto, AnularVentaDto, VentaPosDto } from '../dto/venta.dto'
@@ -20,6 +22,10 @@ type OpcionesVenta = {
   montoEfectivoCaja?: number
   nitCi?: string
   telefonoCliente?: string
+  // Pagos cobrados al registrar la venta (montos netos: el efectivo ya sin el cambio)
+  pagos?: { metodoPago: string; monto: number; referencia?: string }[]
+  // Cotización que se convierte en esta venta
+  cotizacionId?: string
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -197,6 +203,7 @@ export class VentasService {
         cambio: opciones.cambio !== undefined ? opciones.cambio : cambio,
         montoEfectivo: opciones.montoEfectivoCaja ?? null,
         nitCi: opciones.nitCi || null, telefonoCliente: opciones.telefonoCliente || null,
+        cotizacionId: opciones.cotizacionId || null,
         contactoClienteId: dto.contactoClienteId, nombreCliente: dto.nombreCliente,
         observaciones: dto.observaciones,
         estado: Status.ACTIVE, transaccion: Transacccion.CREAR, usuarioCreacion: usuarioId,
@@ -255,6 +262,21 @@ export class VentasService {
             )
           }
         }
+      }
+
+      // Conversión: la cotización queda CONVERTIDA y apunta a esta venta (misma transacción)
+      if (opciones.cotizacionId) {
+        await CotizacionesService.marcarConvertida(manager, clienteId, opciones.cotizacionId, venta.id)
+      }
+
+      // Pagos cobrados en el POS: quedan como primer(os) pago(s) de la venta
+      for (const p of opciones.pagos || []) {
+        if (!(p.monto > 0)) continue
+        await manager.save(VentaPago, manager.create(VentaPago, {
+          clienteId, ventaId: venta.id, origen: OrigenPagoVenta.POS,
+          fecha: venta.fecha, metodoPago: p.metodoPago, monto: p.monto, referencia: p.referencia || undefined,
+          estado: Status.ACTIVE, transaccion: Transacccion.CREAR, usuarioCreacion: usuarioId,
+        }))
       }
 
       // Update caja session totals
@@ -330,7 +352,21 @@ export class VentasService {
       montoAdelanto: adelantos[0] ? Number(adelantos[0].monto) : undefined,
       detalles: dto.detalles,
     }
+    // El cambio sale del efectivo: se descuenta de los pagos en efectivo para registrar montos netos
+    let cambioPendiente = cambio
+    const pagosNetos = [...pagos].reverse().map(p => {
+      let monto = Number(p.monto)
+      if (p.metodoPago === 'EFECTIVO' && cambioPendiente > 0) {
+        const descuento = Math.min(cambioPendiente, monto)
+        monto = r2(monto - descuento)
+        cambioPendiente = r2(cambioPendiente - descuento)
+      }
+      return { metodoPago: p.metodoPago, monto, referencia: p.referencia }
+    }).reverse()
+
     return this.crear(clienteId, ventaDto, usuarioId, {
+      cotizacionId: dto.cotizacionId,
+      pagos: pagosNetos,
       fecha: dto.fecha,
       estadoVenta: saldo > 0 ? EstadoVenta.PENDIENTE : EstadoVenta.PAGADA,
       montoPagado: totalPagado,
@@ -384,6 +420,9 @@ export class VentasService {
         await manager.decrement(CajaSesion, { id: venta.cajaSesionId }, 'totalVentas', efectivoCaja)
         await manager.decrement(CajaSesion, { id: venta.cajaSesionId }, 'nroVentas', 1)
       }
+
+      // La cotización de origen vuelve a quedar vigente (conserva su detalle)
+      await CotizacionesService.liberarPorVenta(manager, clienteId, venta.id)
 
       Object.assign(venta, {
         estadoVenta: EstadoVenta.ANULADA,

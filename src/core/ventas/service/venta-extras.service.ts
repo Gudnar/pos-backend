@@ -143,6 +143,14 @@ export class VentaExtrasService {
     return mapa
   }
 
+  async cotizacionDeVenta(clienteId: string, cotizacionId?: string | null): Promise<any> {
+    if (!cotizacionId) return null
+    const [c] = await this.ds.query(
+      `SELECT id, nro_cotizacion AS "nroCotizacion", fecha::text AS fecha FROM ${this.schema}.cotizacion WHERE id = $1 AND cliente_id = $2`,
+      [cotizacionId, clienteId])
+    return c || null
+  }
+
   // ── Datos completos para imprimir nota de venta / hoja de ruta ─────────────
   async datosImpresion(clienteId: string, ventaId: string): Promise<any> {
     const venta = await this.obtenerVenta(clienteId, ventaId)

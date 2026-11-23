@@ -131,6 +131,12 @@ let VentaExtrasService = class VentaExtrasService {
             mapa.set(r.ventaId, Number(r.total));
         return mapa;
     }
+    async cotizacionDeVenta(clienteId, cotizacionId) {
+        if (!cotizacionId)
+            return null;
+        const [c] = await this.ds.query(`SELECT id, nro_cotizacion AS "nroCotizacion", fecha::text AS fecha FROM ${this.schema}.cotizacion WHERE id = $1 AND cliente_id = $2`, [cotizacionId, clienteId]);
+        return c || null;
+    }
     async datosImpresion(clienteId, ventaId) {
         const venta = await this.obtenerVenta(clienteId, ventaId);
         const detalles = await this.detalleRepo.find({ where: { ventaId, clienteId, estado: constants_1.Status.ACTIVE }, order: { fechaCreacion: 'ASC' } });

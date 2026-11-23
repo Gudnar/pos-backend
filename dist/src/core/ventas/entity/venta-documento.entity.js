@@ -9,15 +9,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VentaDocumento = exports.TIPOS_DOCUMENTO_VENTA = exports.TipoDocumentoVenta = void 0;
+exports.VentaDocumento = exports.TIPOS_DOCUMENTO_MULTIPLES = exports.TIPOS_DOCUMENTO_VENTA = exports.TipoDocumentoVenta = void 0;
 const typeorm_1 = require("typeorm");
 const auditoria_entity_1 = require("../../../common/entity/auditoria.entity");
 exports.TipoDocumentoVenta = {
     TABLILLA_PESAJE: 'TABLILLA_PESAJE',
-    RECIBO: 'RECIBO',
     OTROS: 'OTROS',
 };
 exports.TIPOS_DOCUMENTO_VENTA = Object.values(exports.TipoDocumentoVenta);
+exports.TIPOS_DOCUMENTO_MULTIPLES = [exports.TipoDocumentoVenta.TABLILLA_PESAJE];
 let VentaDocumento = class VentaDocumento extends auditoria_entity_1.AuditoriaEntity {
     constructor(data) {
         super(data);

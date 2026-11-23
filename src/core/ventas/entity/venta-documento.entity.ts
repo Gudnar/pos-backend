@@ -3,11 +3,13 @@ import { AuditoriaEntity } from '../../../common/entity/auditoria.entity'
 
 export const TipoDocumentoVenta = {
   TABLILLA_PESAJE: 'TABLILLA_PESAJE',
-  RECIBO: 'RECIBO',
   OTROS: 'OTROS',
 }
 
 export const TIPOS_DOCUMENTO_VENTA = Object.values(TipoDocumentoVenta)
+
+// Tipos que admiten varios archivos por venta (los demás se reemplazan al subir otro)
+export const TIPOS_DOCUMENTO_MULTIPLES = [TipoDocumentoVenta.TABLILLA_PESAJE]
 
 @Entity({ name: 'venta_documento', schema: process.env.DB_SCHEMA || 'public' })
 @Index(['ventaId', 'tipo'])

@@ -1,7 +1,9 @@
 import {
   Controller, Get, Put, Post, Delete,
-  Body, Param, Req, UseGuards, HttpCode, HttpStatus,
+  Body, Param, Req, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFile,
 } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { LogoEmpresaService, MAX_TAMANO_LOGO } from '../service/logo-empresa.service'
 import { JwtAuthGuard } from '../../authentication/guards/jwt-auth.guard'
 import { RolesGuard } from '../../authentication/guards/roles.guard'
 import { Roles } from '../../authentication/decorators/roles.decorator'
@@ -19,7 +21,10 @@ import { Messages } from '../../../common/constants/response-messages'
 @Roles('ADMIN_CLIENTE', 'SUPER_ADMIN')
 @Controller('mi-cuenta')
 export class MiCuentaController {
-  constructor(private readonly svc: MiCuentaService) {}
+  constructor(
+    private readonly svc: MiCuentaService,
+    private readonly logoSvc: LogoEmpresaService,
+  ) {}
 
   // ── Empresa ──────────────────────────────────────────────────────────────
 
@@ -33,6 +38,21 @@ export class MiCuentaController {
   async actualizar(@Req() req: any, @Body() dto: UpdateMiCuentaDto) {
     const datos = await this.svc.actualizarCliente(req.user.clienteId, dto, req.user.id)
     return { finalizado: true, mensaje: Messages.SUCCESS_UPDATE, datos }
+  }
+
+  // ── Logo de la empresa (documentos e interfaz) ────────────────────────────
+
+  @Post('logo')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_TAMANO_LOGO, files: 1 } }))
+  async subirLogo(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
+    const datos = await this.logoSvc.subir(req.user.clienteId, file, req.user.id)
+    return { finalizado: true, mensaje: 'Logo actualizado', datos }
+  }
+
+  @Delete('logo')
+  async quitarLogo(@Req() req: any) {
+    await this.logoSvc.quitar(req.user.clienteId, req.user.id)
+    return { finalizado: true, mensaje: 'Logo eliminado', datos: null }
   }
 
   // ── Roles ─────────────────────────────────────────────────────────────────

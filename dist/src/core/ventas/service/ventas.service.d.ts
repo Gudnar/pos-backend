@@ -15,6 +15,12 @@ type OpcionesVenta = {
     montoEfectivoCaja?: number;
     nitCi?: string;
     telefonoCliente?: string;
+    pagos?: {
+        metodoPago: string;
+        monto: number;
+        referencia?: string;
+    }[];
+    cotizacionId?: string;
 };
 export declare class VentasService {
     private readonly ventaRepo;

@@ -24,6 +24,7 @@ export declare class VentaExtrasService {
     eliminarComision(clienteId: string, ventaId: string, comisionId: string, usuarioId: string): Promise<void>;
     cancelarComisionesDeVenta(clienteId: string, ventaId: string, usuarioId: string): Promise<void>;
     totalComisionesPorVenta(clienteId: string, ventaIds: string[]): Promise<Map<string, number>>;
+    cotizacionDeVenta(clienteId: string, cotizacionId?: string | null): Promise<any>;
     datosImpresion(clienteId: string, ventaId: string): Promise<any>;
     private validarContacto;
 }

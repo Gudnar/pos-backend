@@ -118,6 +118,10 @@ __decorate([
     __metadata("design:type", Number)
 ], Venta.prototype, "montoAdelanto", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'cotizacion_id', type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Venta.prototype, "cotizacionId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'monto_efectivo', type: 'decimal', precision: 14, scale: 2, nullable: true }),
     __metadata("design:type", Number)
 ], Venta.prototype, "montoEfectivo", void 0);

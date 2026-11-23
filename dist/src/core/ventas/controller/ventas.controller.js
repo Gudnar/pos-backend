@@ -21,14 +21,17 @@ const roles_decorator_1 = require("../../authentication/decorators/roles.decorat
 const ventas_service_1 = require("../service/ventas.service");
 const venta_documentos_service_1 = require("../service/venta-documentos.service");
 const venta_extras_service_1 = require("../service/venta-extras.service");
+const venta_pagos_service_1 = require("../service/venta-pagos.service");
+const venta_pago_dto_1 = require("../dto/venta-pago.dto");
 const venta_extras_dto_1 = require("../dto/venta-extras.dto");
 const venta_dto_1 = require("../dto/venta.dto");
 const response_messages_1 = require("../../../common/constants/response-messages");
 let VentasController = class VentasController {
-    constructor(svc, docsSvc, extrasSvc) {
+    constructor(svc, docsSvc, extrasSvc, pagosSvc) {
         this.svc = svc;
         this.docsSvc = docsSvc;
         this.extrasSvc = extrasSvc;
+        this.pagosSvc = pagosSvc;
     }
     async listar(req, sucursalId, fechaDesde, fechaHasta, estadoVenta, nombreCliente, conSaldo) {
         const conSaldoBool = conSaldo === 'true' ? true : conSaldo === 'false' ? false : undefined;
@@ -42,7 +45,8 @@ let VentasController = class VentasController {
     async obtener(req, id) {
         const venta = await this.svc.obtener(req.user.clienteId, id);
         const documentos = await this.docsSvc.listar(req.user.clienteId, id);
-        const datos = { ...venta, documentos };
+        const cotizacion = await this.extrasSvc.cotizacionDeVenta(req.user.clienteId, venta.venta.cotizacionId);
+        const datos = { ...venta, documentos, cotizacion };
         return { finalizado: true, mensaje: 'OK', datos };
     }
     async crear(req, dto) {
@@ -60,6 +64,7 @@ let VentasController = class VentasController {
     async anular(req, id, dto) {
         const datos = await this.svc.anular(req.user.clienteId, id, dto, req.user.id);
         await this.extrasSvc.cancelarComisionesDeVenta(req.user.clienteId, id, req.user.id);
+        await this.pagosSvc.cancelarMovimientosDeVenta(req.user.clienteId, id, req.user.id);
         return { finalizado: true, mensaje: 'Venta anulada', datos };
     }
     async listarDocumentos(req, id) {
@@ -108,6 +113,38 @@ let VentasController = class VentasController {
     async eliminarComision(req, id, comisionId) {
         await this.extrasSvc.eliminarComision(req.user.clienteId, id, comisionId, req.user.id);
         return { finalizado: true, mensaje: 'Comisión eliminada', datos: null };
+    }
+    async listarPagos(req, id) {
+        const datos = await this.pagosSvc.listar(req.user.clienteId, id);
+        return { finalizado: true, mensaje: 'OK', datos };
+    }
+    async registrarPago(req, id, dto) {
+        const datos = await this.pagosSvc.registrarAbono(req.user.clienteId, id, dto, req.user.id);
+        return { finalizado: true, mensaje: 'Pago registrado', datos };
+    }
+    async eliminarPago(req, id, pagoId) {
+        await this.pagosSvc.eliminarAbono(req.user.clienteId, id, pagoId, req.user.id);
+        return { finalizado: true, mensaje: 'Pago eliminado', datos: null };
+    }
+    async comprobantePagoInicial(req, id, file) {
+        const datos = await this.pagosSvc.detallarPagoInicialConComprobante(req.user.clienteId, id, file, req.user.id);
+        const { comprobanteRuta, ...pago } = datos;
+        return { finalizado: true, mensaje: 'Comprobante subido', datos: pago };
+    }
+    async subirComprobantePago(req, id, pagoId, file) {
+        const datos = await this.pagosSvc.subirComprobante(req.user.clienteId, id, pagoId, file, req.user.id);
+        return { finalizado: true, mensaje: 'Comprobante subido', datos };
+    }
+    async verComprobantePago(req, id, pagoId, res) {
+        const c = await this.pagosSvc.obtenerComprobante(req.user.clienteId, id, pagoId);
+        res.setHeader('Content-Type', c.mime);
+        res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(c.nombre)}`);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.sendFile(c.rutaAbsoluta);
+    }
+    async eliminarComprobantePago(req, id, pagoId) {
+        await this.pagosSvc.eliminarComprobante(req.user.clienteId, id, pagoId, req.user.id);
+        return { finalizado: true, mensaje: 'Comprobante eliminado', datos: null };
     }
 };
 __decorate([
@@ -270,13 +307,84 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], VentasController.prototype, "eliminarComision", null);
+__decorate([
+    (0, common_1.Get)(':id/pagos'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "listarPagos", null);
+__decorate([
+    (0, common_1.Post)(':id/pagos'),
+    (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, venta_pago_dto_1.RegistrarPagoVentaDto]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "registrarPago", null);
+__decorate([
+    (0, common_1.Delete)(':id/pagos/:pagoId'),
+    (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('pagoId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "eliminarPago", null);
+__decorate([
+    (0, common_1.Post)(':id/pagos/inicial/comprobante'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { limits: { fileSize: venta_documentos_service_1.MAX_TAMANO_DOCUMENTO, files: 1 } })),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "comprobantePagoInicial", null);
+__decorate([
+    (0, common_1.Post)(':id/pagos/:pagoId/comprobante'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { limits: { fileSize: venta_documentos_service_1.MAX_TAMANO_DOCUMENTO, files: 1 } })),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('pagoId', common_1.ParseUUIDPipe)),
+    __param(3, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "subirComprobantePago", null);
+__decorate([
+    (0, common_1.Get)(':id/pagos/:pagoId/comprobante'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('pagoId', common_1.ParseUUIDPipe)),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "verComprobantePago", null);
+__decorate([
+    (0, common_1.Delete)(':id/pagos/:pagoId/comprobante'),
+    (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('pagoId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], VentasController.prototype, "eliminarComprobantePago", null);
 VentasController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO', 'CAJERO', 'VENDEDOR'),
     (0, common_1.Controller)('ventas'),
     __metadata("design:paramtypes", [ventas_service_1.VentasService,
         venta_documentos_service_1.VentaDocumentosService,
-        venta_extras_service_1.VentaExtrasService])
+        venta_extras_service_1.VentaExtrasService,
+        venta_pagos_service_1.VentaPagosService])
 ], VentasController);
 exports.VentasController = VentasController;
 //# sourceMappingURL=ventas.controller.js.map

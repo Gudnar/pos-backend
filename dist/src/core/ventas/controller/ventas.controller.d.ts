@@ -3,13 +3,16 @@ import { Response } from 'express';
 import { VentasService } from '../service/ventas.service';
 import { VentaDocumentosService } from '../service/venta-documentos.service';
 import { VentaExtrasService } from '../service/venta-extras.service';
+import { VentaPagosService } from '../service/venta-pagos.service';
+import { RegistrarPagoVentaDto } from '../dto/venta-pago.dto';
 import { DatosNotaVentaDto, HojaRutaDto, CrearComisionDto } from '../dto/venta-extras.dto';
 import { CrearVentaDto, AnularVentaDto, VentaPosDto } from '../dto/venta.dto';
 export declare class VentasController {
     private readonly svc;
     private readonly docsSvc;
     private readonly extrasSvc;
-    constructor(svc: VentasService, docsSvc: VentaDocumentosService, extrasSvc: VentaExtrasService);
+    private readonly pagosSvc;
+    constructor(svc: VentasService, docsSvc: VentaDocumentosService, extrasSvc: VentaExtrasService, pagosSvc: VentaPagosService);
     listar(req: any, sucursalId?: string, fechaDesde?: string, fechaHasta?: string, estadoVenta?: string, nombreCliente?: string, conSaldo?: string): Promise<{
         finalizado: boolean;
         mensaje: string;
@@ -37,6 +40,7 @@ export declare class VentasController {
             observaciones?: string | undefined;
             adelantoId?: string | undefined;
             montoAdelanto?: number | undefined;
+            cotizacionId?: string | null | undefined;
             montoEfectivo?: number | undefined;
             nitCi?: string | undefined;
             telefonoCliente?: string | undefined;
@@ -123,6 +127,37 @@ export declare class VentasController {
         datos: any;
     }>;
     eliminarComision(req: any, id: string, comisionId: string): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: null;
+    }>;
+    listarPagos(req: any, id: string): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: any;
+    }>;
+    registrarPago(req: any, id: string, dto: RegistrarPagoVentaDto): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: import("../entity/venta-pago.entity").VentaPago;
+    }>;
+    eliminarPago(req: any, id: string, pagoId: string): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: null;
+    }>;
+    comprobantePagoInicial(req: any, id: string, file: Express.Multer.File): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: any;
+    }>;
+    subirComprobantePago(req: any, id: string, pagoId: string, file: Express.Multer.File): Promise<{
+        finalizado: boolean;
+        mensaje: string;
+        datos: any;
+    }>;
+    verComprobantePago(req: any, id: string, pagoId: string, res: Response): Promise<void>;
+    eliminarComprobantePago(req: any, id: string, pagoId: string): Promise<{
         finalizado: boolean;
         mensaje: string;
         datos: null;

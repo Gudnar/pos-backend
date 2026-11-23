@@ -82,6 +82,10 @@ export class Venta extends AuditoriaEntity {
   @Column({ name: 'monto_adelanto', type: 'decimal', precision: 14, scale: 2, nullable: true })
   montoAdelanto?: number
 
+  // Cotización de la que salió la venta (la cotización conserva su propio detalle)
+  @Column({ name: 'cotizacion_id', type: 'uuid', nullable: true })
+  cotizacionId?: string | null
+
   // Efectivo que quedó en caja (recibido − cambio); es lo que suma/resta a la sesión de caja
   @Column({ name: 'monto_efectivo', type: 'decimal', precision: 14, scale: 2, nullable: true })
   montoEfectivo?: number

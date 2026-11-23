@@ -5,10 +5,12 @@ import { randomUUID } from 'crypto'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 import { Venta, EstadoVenta } from '../entity/venta.entity'
-import { VentaDocumento, TIPOS_DOCUMENTO_VENTA } from '../entity/venta-documento.entity'
+import { VentaDocumento, TIPOS_DOCUMENTO_VENTA, TIPOS_DOCUMENTO_MULTIPLES } from '../entity/venta-documento.entity'
 import { Status, Transacccion } from '../../../common/constants'
 
 export const MAX_TAMANO_DOCUMENTO = 5 * 1024 * 1024
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Tipos aceptados, detectados por la firma del archivo (no por lo que declara el navegador)
 const FIRMAS: { mime: string; ext: string; match: (b: Buffer) => boolean }[] = [
@@ -17,6 +19,8 @@ const FIRMAS: { mime: string; ext: string; match: (b: Buffer) => boolean }[] = [
   { mime: 'image/jpeg', ext: 'jpg', match: b => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
   { mime: 'image/webp', ext: 'webp', match: b => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP' },
 ]
+
+export type ArchivoGuardado = { rutaRelativa: string; mimeType: string; nombreOriginal: string; tamano: number }
 
 @Injectable()
 export class VentaDocumentosService {
@@ -35,7 +39,7 @@ export class VentaDocumentosService {
     })
   }
 
-  /** Mapa ventaId → tipos de documento cargados, para el listado (una sola consulta). */
+  /** Mapa ventaId → tipos de documento cargados (un elemento por archivo), para el listado. */
   async tiposPorVenta(clienteId: string, ventaIds: string[]): Promise<Map<string, string[]>> {
     const mapa = new Map<string, string[]>()
     if (!ventaIds.length) return mapa
@@ -49,32 +53,25 @@ export class VentaDocumentosService {
 
   async subir(clienteId: string, ventaId: string, tipo: string, file: Express.Multer.File, usuarioId: string): Promise<VentaDocumento> {
     this.validarTipo(tipo)
-    if (!file?.buffer?.length) throw new BadRequestException('Archivo requerido')
-    if (file.size > MAX_TAMANO_DOCUMENTO) throw new BadRequestException('El archivo supera el tamaño máximo de 5 MB')
-
-    const firma = FIRMAS.find(f => f.match(file.buffer))
-    if (!firma) throw new BadRequestException('Formato no permitido. Solo se aceptan PDF, JPG, PNG o WEBP')
-
     const venta = await this.obtenerVenta(clienteId, ventaId)
     if (venta.estadoVenta === EstadoVenta.ANULADA) throw new BadRequestException('No se pueden subir documentos a una venta anulada')
 
-    const rutaRelativa = path.join('ventas', String(clienteId), ventaId, `${tipo.toLowerCase()}-${randomUUID()}.${firma.ext}`)
-    const rutaAbsoluta = path.join(this.baseDir, rutaRelativa)
-    await fs.mkdir(path.dirname(rutaAbsoluta), { recursive: true })
-    await fs.writeFile(rutaAbsoluta, file.buffer)
+    const archivo = await this.guardarArchivo(clienteId, ventaId, tipo.toLowerCase(), file)
 
-    // Reemplazo: se da de baja el documento anterior del mismo tipo
-    const anterior = await this.buscarActivo(clienteId, ventaId, tipo)
-    if (anterior) await this.darDeBaja(anterior, usuarioId)
+    // Los tipos de un solo archivo se reemplazan; las tablillas de pesaje se acumulan
+    if (!TIPOS_DOCUMENTO_MULTIPLES.includes(tipo)) {
+      const anterior = await this.buscar(clienteId, ventaId, tipo)
+      if (anterior) await this.darDeBaja(anterior, usuarioId)
+    }
 
     const doc = this.docRepo.create({
       clienteId,
       ventaId,
       tipo,
-      nombreOriginal: this.limpiarNombre(file.originalname),
-      mimeType: firma.mime,
-      tamano: file.size,
-      rutaArchivo: rutaRelativa,
+      nombreOriginal: archivo.nombreOriginal,
+      mimeType: archivo.mimeType,
+      tamano: archivo.tamano,
+      rutaArchivo: archivo.rutaRelativa,
       estado: Status.ACTIVE,
       usuarioCreacion: usuarioId,
     })
@@ -82,26 +79,47 @@ export class VentaDocumentosService {
     return guardado as VentaDocumento
   }
 
-  async obtenerArchivo(clienteId: string, ventaId: string, tipo: string): Promise<{ doc: VentaDocumento; rutaAbsoluta: string }> {
-    this.validarTipo(tipo)
+  /** `ref` es el id del documento o, por compatibilidad, su tipo (toma el primero de ese tipo). */
+  async obtenerArchivo(clienteId: string, ventaId: string, ref: string): Promise<{ doc: VentaDocumento; rutaAbsoluta: string }> {
     await this.obtenerVenta(clienteId, ventaId)
-    const doc = await this.buscarActivo(clienteId, ventaId, tipo)
+    const doc = await this.buscar(clienteId, ventaId, ref)
     if (!doc) throw new NotFoundException('Documento no encontrado')
-    const rutaAbsoluta = path.join(this.baseDir, doc.rutaArchivo)
+    return { doc, rutaAbsoluta: await this.rutaExistente(doc.rutaArchivo) }
+  }
+
+  async eliminar(clienteId: string, ventaId: string, ref: string, usuarioId: string): Promise<void> {
+    await this.obtenerVenta(clienteId, ventaId)
+    const doc = await this.buscar(clienteId, ventaId, ref)
+    if (!doc) throw new NotFoundException('Documento no encontrado')
+    await this.darDeBaja(doc, usuarioId)
+  }
+
+  // ── Archivos (también los usa el comprobante de cada pago) ────────────────
+  async guardarArchivo(clienteId: string, ventaId: string, prefijo: string, file: Express.Multer.File): Promise<ArchivoGuardado> {
+    if (!file?.buffer?.length) throw new BadRequestException('Archivo requerido')
+    if (file.size > MAX_TAMANO_DOCUMENTO) throw new BadRequestException('El archivo supera el tamaño máximo de 5 MB')
+    const firma = FIRMAS.find(f => f.match(file.buffer))
+    if (!firma) throw new BadRequestException('Formato no permitido. Solo se aceptan PDF, JPG, PNG o WEBP')
+
+    const rutaRelativa = path.join('ventas', String(clienteId), ventaId, `${prefijo}-${randomUUID()}.${firma.ext}`)
+    const rutaAbsoluta = path.join(this.baseDir, rutaRelativa)
+    await fs.mkdir(path.dirname(rutaAbsoluta), { recursive: true })
+    await fs.writeFile(rutaAbsoluta, file.buffer)
+    return { rutaRelativa, mimeType: firma.mime, nombreOriginal: this.limpiarNombre(file.originalname), tamano: file.size }
+  }
+
+  async rutaExistente(rutaRelativa: string): Promise<string> {
+    const rutaAbsoluta = path.join(this.baseDir, rutaRelativa)
     try {
       await fs.access(rutaAbsoluta)
     } catch {
       throw new NotFoundException('El archivo no está disponible en el servidor')
     }
-    return { doc, rutaAbsoluta }
+    return rutaAbsoluta
   }
 
-  async eliminar(clienteId: string, ventaId: string, tipo: string, usuarioId: string): Promise<void> {
-    this.validarTipo(tipo)
-    await this.obtenerVenta(clienteId, ventaId)
-    const doc = await this.buscarActivo(clienteId, ventaId, tipo)
-    if (!doc) throw new NotFoundException('Documento no encontrado')
-    await this.darDeBaja(doc, usuarioId)
+  async borrarArchivo(rutaRelativa?: string | null): Promise<void> {
+    if (rutaRelativa) await fs.unlink(path.join(this.baseDir, rutaRelativa)).catch(() => undefined)
   }
 
   private async darDeBaja(doc: VentaDocumento, usuarioId: string) {
@@ -109,16 +127,19 @@ export class VentaDocumentosService {
     doc.transaccion = Transacccion.ELIMINAR
     doc.usuarioModificacion = usuarioId
     await this.docRepo.save(doc)
-    await fs.unlink(path.join(this.baseDir, doc.rutaArchivo)).catch(() => undefined)
+    await this.borrarArchivo(doc.rutaArchivo)
   }
 
-  private buscarActivo(clienteId: string, ventaId: string, tipo: string) {
+  private buscar(clienteId: string, ventaId: string, ref: string) {
+    const porId = UUID_RE.test(ref)
+    if (!porId) this.validarTipo(ref)
     return this.docRepo.createQueryBuilder('d')
       .addSelect('d.rutaArchivo')
       .where('d.clienteId = :clienteId', { clienteId })
       .andWhere('d.ventaId = :ventaId', { ventaId })
-      .andWhere('d.tipo = :tipo', { tipo })
+      .andWhere(porId ? 'd.id = :ref' : 'd.tipo = :ref', { ref })
       .andWhere('d.estado = :est', { est: Status.ACTIVE })
+      .orderBy('d.fechaCreacion', 'ASC')
       .getOne()
   }
 

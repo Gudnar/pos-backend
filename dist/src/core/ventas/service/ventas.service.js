@@ -22,6 +22,8 @@ const lote_entity_1 = require("../../lotes/entity/lote.entity");
 const movimiento_stock_entity_1 = require("../../movimientos-stock/entity/movimiento-stock.entity");
 const producto_entity_1 = require("../../productos/entity/producto.entity");
 const caja_sesion_entity_1 = require("../../caja/entity/caja-sesion.entity");
+const venta_pago_entity_1 = require("../entity/venta-pago.entity");
+const cotizaciones_service_1 = require("./cotizaciones.service");
 const ingresos_service_1 = require("../../ingresos/service/ingresos.service");
 const constants_1 = require("../../../common/constants");
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -156,6 +158,7 @@ let VentasService = class VentasService {
                 cambio: opciones.cambio !== undefined ? opciones.cambio : cambio,
                 montoEfectivo: opciones.montoEfectivoCaja ?? null,
                 nitCi: opciones.nitCi || null, telefonoCliente: opciones.telefonoCliente || null,
+                cotizacionId: opciones.cotizacionId || null,
                 contactoClienteId: dto.contactoClienteId, nombreCliente: dto.nombreCliente,
                 observaciones: dto.observaciones,
                 estado: constants_1.Status.ACTIVE, transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioId,
@@ -201,6 +204,18 @@ let VentasService = class VentasService {
                         }));
                     }
                 }
+            }
+            if (opciones.cotizacionId) {
+                await cotizaciones_service_1.CotizacionesService.marcarConvertida(manager, clienteId, opciones.cotizacionId, venta.id);
+            }
+            for (const p of opciones.pagos || []) {
+                if (!(p.monto > 0))
+                    continue;
+                await manager.save(venta_pago_entity_1.VentaPago, manager.create(venta_pago_entity_1.VentaPago, {
+                    clienteId, ventaId: venta.id, origen: venta_pago_entity_1.OrigenPagoVenta.POS,
+                    fecha: venta.fecha, metodoPago: p.metodoPago, monto: p.monto, referencia: p.referencia || undefined,
+                    estado: constants_1.Status.ACTIVE, transaccion: constants_1.Transacccion.CREAR, usuarioCreacion: usuarioId,
+                }));
             }
             if (dto.cajaSesionId) {
                 await manager.increment(caja_sesion_entity_1.CajaSesion, { id: dto.cajaSesionId }, 'totalVentas', opciones.montoEfectivoCaja ?? total);
@@ -262,7 +277,19 @@ let VentasService = class VentasService {
             montoAdelanto: adelantos[0] ? Number(adelantos[0].monto) : undefined,
             detalles: dto.detalles,
         };
+        let cambioPendiente = cambio;
+        const pagosNetos = [...pagos].reverse().map(p => {
+            let monto = Number(p.monto);
+            if (p.metodoPago === 'EFECTIVO' && cambioPendiente > 0) {
+                const descuento = Math.min(cambioPendiente, monto);
+                monto = r2(monto - descuento);
+                cambioPendiente = r2(cambioPendiente - descuento);
+            }
+            return { metodoPago: p.metodoPago, monto, referencia: p.referencia };
+        }).reverse();
         return this.crear(clienteId, ventaDto, usuarioId, {
+            cotizacionId: dto.cotizacionId,
+            pagos: pagosNetos,
             fecha: dto.fecha,
             estadoVenta: saldo > 0 ? venta_entity_1.EstadoVenta.PENDIENTE : venta_entity_1.EstadoVenta.PAGADA,
             montoPagado: totalPagado,
@@ -310,6 +337,7 @@ let VentasService = class VentasService {
                 await manager.decrement(caja_sesion_entity_1.CajaSesion, { id: venta.cajaSesionId }, 'totalVentas', efectivoCaja);
                 await manager.decrement(caja_sesion_entity_1.CajaSesion, { id: venta.cajaSesionId }, 'nroVentas', 1);
             }
+            await cotizaciones_service_1.CotizacionesService.liberarPorVenta(manager, clienteId, venta.id);
             Object.assign(venta, {
                 estadoVenta: venta_entity_1.EstadoVenta.ANULADA,
                 observaciones: dto.motivo ? `ANULADA: ${dto.motivo}${venta.observaciones ? ' | ' + venta.observaciones : ''}` : venta.observaciones,

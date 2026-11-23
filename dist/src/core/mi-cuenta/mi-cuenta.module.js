@@ -14,13 +14,15 @@ const usuario_entity_1 = require("../usuario/entity/usuario.entity");
 const rol_cliente_entity_1 = require("./entity/rol-cliente.entity");
 const mi_cuenta_service_1 = require("./service/mi-cuenta.service");
 const mi_cuenta_controller_1 = require("./controller/mi-cuenta.controller");
+const logo_empresa_service_1 = require("./service/logo-empresa.service");
+const logo_empresa_controller_1 = require("./controller/logo-empresa.controller");
 let MiCuentaModule = class MiCuentaModule {
 };
 MiCuentaModule = __decorate([
     (0, common_1.Module)({
         imports: [typeorm_1.TypeOrmModule.forFeature([cliente_entity_1.Cliente, usuario_entity_1.Usuario, rol_cliente_entity_1.RolCliente])],
-        providers: [mi_cuenta_service_1.MiCuentaService],
-        controllers: [mi_cuenta_controller_1.MiCuentaController],
+        providers: [mi_cuenta_service_1.MiCuentaService, logo_empresa_service_1.LogoEmpresaService],
+        controllers: [mi_cuenta_controller_1.MiCuentaController, logo_empresa_controller_1.LogoEmpresaController],
         exports: [mi_cuenta_service_1.MiCuentaService],
     })
 ], MiCuentaModule);

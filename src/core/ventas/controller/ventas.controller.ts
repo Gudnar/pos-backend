@@ -10,6 +10,8 @@ import { Roles } from '../../authentication/decorators/roles.decorator'
 import { VentasService } from '../service/ventas.service'
 import { VentaDocumentosService, MAX_TAMANO_DOCUMENTO } from '../service/venta-documentos.service'
 import { VentaExtrasService } from '../service/venta-extras.service'
+import { VentaPagosService } from '../service/venta-pagos.service'
+import { RegistrarPagoVentaDto } from '../dto/venta-pago.dto'
 import { DatosNotaVentaDto, HojaRutaDto, CrearComisionDto } from '../dto/venta-extras.dto'
 import { CrearVentaDto, AnularVentaDto, VentaPosDto } from '../dto/venta.dto'
 import { Messages } from '../../../common/constants/response-messages'
@@ -22,6 +24,7 @@ export class VentasController {
     private readonly svc: VentasService,
     private readonly docsSvc: VentaDocumentosService,
     private readonly extrasSvc: VentaExtrasService,
+    private readonly pagosSvc: VentaPagosService,
   ) {}
 
   @Get()
@@ -47,7 +50,8 @@ export class VentasController {
   async obtener(@Req() req: any, @Param('id') id: string) {
     const venta = await this.svc.obtener(req.user.clienteId, id)
     const documentos = await this.docsSvc.listar(req.user.clienteId, id)
-    const datos = { ...venta, documentos }
+    const cotizacion = await this.extrasSvc.cotizacionDeVenta(req.user.clienteId, venta.venta.cotizacionId)
+    const datos = { ...venta, documentos, cotizacion }
     return { finalizado: true, mensaje: 'OK', datos }
   }
 
@@ -79,6 +83,7 @@ export class VentasController {
   async anular(@Req() req: any, @Param('id') id: string, @Body() dto: AnularVentaDto) {
     const datos = await this.svc.anular(req.user.clienteId, id, dto, req.user.id)
     await this.extrasSvc.cancelarComisionesDeVenta(req.user.clienteId, id, req.user.id)
+    await this.pagosSvc.cancelarMovimientosDeVenta(req.user.clienteId, id, req.user.id)
     return { finalizado: true, mensaje: 'Venta anulada', datos }
   }
 
@@ -172,5 +177,74 @@ export class VentasController {
   ) {
     await this.extrasSvc.eliminarComision(req.user.clienteId, id, comisionId, req.user.id)
     return { finalizado: true, mensaje: 'Comisión eliminada', datos: null }
+  }
+
+  // ── Pagos (cobros del POS y abonos de ventas a crédito) ─────────────────────
+
+  @Get(':id/pagos')
+  async listarPagos(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    const datos = await this.pagosSvc.listar(req.user.clienteId, id)
+    return { finalizado: true, mensaje: 'OK', datos }
+  }
+
+  @Post(':id/pagos')
+  @Roles('ADMIN_CLIENTE', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.CREATED)
+  async registrarPago(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: RegistrarPagoVentaDto) {
+    const datos = await this.pagosSvc.registrarAbono(req.user.clienteId, id, dto, req.user.id)
+    return { finalizado: true, mensaje: 'Pago registrado', datos }
+  }
+
+  @Delete(':id/pagos/:pagoId')
+  @Roles('ADMIN_CLIENTE', 'SUPER_ADMIN')
+  async eliminarPago(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Param('pagoId', ParseUUIDPipe) pagoId: string) {
+    await this.pagosSvc.eliminarAbono(req.user.clienteId, id, pagoId, req.user.id)
+    return { finalizado: true, mensaje: 'Pago eliminado', datos: null }
+  }
+
+  // Debe ir antes de ':id/pagos/:pagoId/comprobante' para que 'inicial' no se tome como un id
+  @Post(':id/pagos/inicial/comprobante')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_TAMANO_DOCUMENTO, files: 1 } }))
+  async comprobantePagoInicial(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const datos = await this.pagosSvc.detallarPagoInicialConComprobante(req.user.clienteId, id, file, req.user.id)
+    const { comprobanteRuta, ...pago } = datos as any
+    return { finalizado: true, mensaje: 'Comprobante subido', datos: pago }
+  }
+
+  @Post(':id/pagos/:pagoId/comprobante')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_TAMANO_DOCUMENTO, files: 1 } }))
+  async subirComprobantePago(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('pagoId', ParseUUIDPipe) pagoId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const datos = await this.pagosSvc.subirComprobante(req.user.clienteId, id, pagoId, file, req.user.id)
+    return { finalizado: true, mensaje: 'Comprobante subido', datos }
+  }
+
+  @Get(':id/pagos/:pagoId/comprobante')
+  async verComprobantePago(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('pagoId', ParseUUIDPipe) pagoId: string,
+    @Res() res: Response,
+  ) {
+    const c = await this.pagosSvc.obtenerComprobante(req.user.clienteId, id, pagoId)
+    res.setHeader('Content-Type', c.mime)
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(c.nombre)}`)
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.sendFile(c.rutaAbsoluta)
+  }
+
+  @Delete(':id/pagos/:pagoId/comprobante')
+  @Roles('ADMIN_CLIENTE', 'SUPER_ADMIN', 'ENCARGADO')
+  async eliminarComprobantePago(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Param('pagoId', ParseUUIDPipe) pagoId: string) {
+    await this.pagosSvc.eliminarComprobante(req.user.clienteId, id, pagoId, req.user.id)
+    return { finalizado: true, mensaje: 'Comprobante eliminado', datos: null }
   }
 }

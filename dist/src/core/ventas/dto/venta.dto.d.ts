@@ -38,6 +38,7 @@ export declare class VentaPosDto {
     observaciones?: string;
     pagos?: PagoVentaDto[];
     registrarDeuda?: boolean;
+    cotizacionId?: string;
     detalles: DetalleVentaDto[];
 }
 export declare class AnularVentaDto {

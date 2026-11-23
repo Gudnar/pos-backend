@@ -108,6 +108,10 @@ export class VentaPosDto {
   @IsOptional() @IsBoolean()
   registrarDeuda?: boolean
 
+  // Cotización que se convierte en esta venta
+  @IsOptional() @Transform(({ value }) => value || undefined) @IsUUID()
+  cotizacionId?: string
+
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => DetalleVentaDto)
   detalles: DetalleVentaDto[]
 }

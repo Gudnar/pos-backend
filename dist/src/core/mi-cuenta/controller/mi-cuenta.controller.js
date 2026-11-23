@@ -14,6 +14,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MiCuentaController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
+const logo_empresa_service_1 = require("../service/logo-empresa.service");
 const jwt_auth_guard_1 = require("../../authentication/guards/jwt-auth.guard");
 const roles_guard_1 = require("../../authentication/guards/roles.guard");
 const roles_decorator_1 = require("../../authentication/decorators/roles.decorator");
@@ -21,8 +23,9 @@ const mi_cuenta_service_1 = require("../service/mi-cuenta.service");
 const mi_cuenta_dto_1 = require("../dto/mi-cuenta.dto");
 const response_messages_1 = require("../../../common/constants/response-messages");
 let MiCuentaController = class MiCuentaController {
-    constructor(svc) {
+    constructor(svc, logoSvc) {
         this.svc = svc;
+        this.logoSvc = logoSvc;
     }
     async obtener(req) {
         const datos = await this.svc.obtenerCliente(req.user.clienteId);
@@ -31,6 +34,14 @@ let MiCuentaController = class MiCuentaController {
     async actualizar(req, dto) {
         const datos = await this.svc.actualizarCliente(req.user.clienteId, dto, req.user.id);
         return { finalizado: true, mensaje: response_messages_1.Messages.SUCCESS_UPDATE, datos };
+    }
+    async subirLogo(req, file) {
+        const datos = await this.logoSvc.subir(req.user.clienteId, file, req.user.id);
+        return { finalizado: true, mensaje: 'Logo actualizado', datos };
+    }
+    async quitarLogo(req) {
+        await this.logoSvc.quitar(req.user.clienteId, req.user.id);
+        return { finalizado: true, mensaje: 'Logo eliminado', datos: null };
     }
     async listarRoles(req) {
         const roles = await this.svc.listarRoles(req.user.clienteId);
@@ -82,6 +93,22 @@ __decorate([
     __metadata("design:paramtypes", [Object, mi_cuenta_dto_1.UpdateMiCuentaDto]),
     __metadata("design:returntype", Promise)
 ], MiCuentaController.prototype, "actualizar", null);
+__decorate([
+    (0, common_1.Post)('logo'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', { limits: { fileSize: logo_empresa_service_1.MAX_TAMANO_LOGO, files: 1 } })),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], MiCuentaController.prototype, "subirLogo", null);
+__decorate([
+    (0, common_1.Delete)('logo'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], MiCuentaController.prototype, "quitarLogo", null);
 __decorate([
     (0, common_1.Get)('roles'),
     __param(0, (0, common_1.Req)()),
@@ -152,7 +179,8 @@ MiCuentaController = __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)('ADMIN_CLIENTE', 'SUPER_ADMIN'),
     (0, common_1.Controller)('mi-cuenta'),
-    __metadata("design:paramtypes", [mi_cuenta_service_1.MiCuentaService])
+    __metadata("design:paramtypes", [mi_cuenta_service_1.MiCuentaService,
+        logo_empresa_service_1.LogoEmpresaService])
 ], MiCuentaController);
 exports.MiCuentaController = MiCuentaController;
 //# sourceMappingURL=mi-cuenta.controller.js.map
