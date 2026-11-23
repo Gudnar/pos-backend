@@ -70,7 +70,7 @@ let UsuariosSistemaService = class UsuariosSistemaService {
             throw new common_1.ConflictException(response_messages_1.Messages.CONFLICT);
         const { sucursales, estado: estadoDto, ...usuarioData } = dto;
         const estado = estadoDto === 'inactivo' ? constants_1.Status.INACTIVE : constants_1.Status.ACTIVE;
-        const nuevo = this.usuarioRepo.create({
+        const nuevo = () => this.usuarioRepo.create({
             usuario: usuarioData.usuario,
             contrasena: usuarioData.contrasena,
             nombres: usuarioData.nombres,
@@ -83,7 +83,16 @@ let UsuariosSistemaService = class UsuariosSistemaService {
             transaccion: constants_1.Transacccion.CREAR,
             usuarioCreacion,
         });
-        const saved = await this.usuarioRepo.save(nuevo);
+        let saved;
+        try {
+            saved = await this.usuarioRepo.save(nuevo());
+        }
+        catch (e) {
+            if (e?.code !== '23505' || !String(e?.detail || '').includes('(id)'))
+                throw e;
+            await this.usuarioRepo.query(`SELECT setval(pg_get_serial_sequence('usuario', 'id'), (SELECT COALESCE(MAX(id), 1) FROM usuario))`);
+            saved = await this.usuarioRepo.save(nuevo());
+        }
         if (sucursales?.length) {
             await this._sincronizar(clienteId, saved.id, sucursales, usuarioCreacion);
         }
@@ -128,7 +137,11 @@ let UsuariosSistemaService = class UsuariosSistemaService {
             ? await this.sucursalRepo.findByIds(sucursalIds)
             : [];
         const { contrasena, ...safe } = u;
-        return { ...safe, sucursales: sucursales.map(s => ({ id: s.id, nombre: s.nombre })) };
+        return {
+            ...safe,
+            activo: u.estado !== constants_1.Status.INACTIVE,
+            sucursales: sucursales.map(s => ({ id: s.id, nombre: s.nombre })),
+        };
     }
     async _sincronizar(clienteId, usuarioId, sucursalIds, actor) {
         const actuales = await this.asignacionRepo.find({ where: { clienteId, usuarioId, estado: constants_1.Status.ACTIVE } });

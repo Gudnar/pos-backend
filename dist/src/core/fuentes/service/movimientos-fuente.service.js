@@ -134,9 +134,10 @@ let MovimientosFuenteService = class MovimientosFuenteService {
     }
     async montoEnMonedaFuente(fuente, mov, manager) {
         const c = mov.conversion;
-        const [base] = await manager.query(`SELECT id FROM logistica_moneda WHERE cliente_id = $1 AND es_moneda_base = true AND _estado = 'ACTIVO' LIMIT 1`, [fuente.clienteId]);
-        const monedaFuente = fuente.monedaId || base?.id || null;
-        if (!fuente.monedaId || monedaFuente === base?.id) {
+        const bases = (await manager.query(`SELECT id FROM logistica_moneda
+        WHERE cliente_id = $1 AND (es_moneda_base = true OR UPPER(REPLACE(TRIM(codigo), '.', '')) IN ('BS', 'BOB', 'BOL'))`, [fuente.clienteId])).map((r) => r.id);
+        const monedaFuente = fuente.monedaId || null;
+        if (!monedaFuente || bases.includes(monedaFuente)) {
             return { monto: mov.total, monedaId: mov.monedaPagoId || undefined, tipoCambio: c.tipoCambio, montoNativo: c.montoBase };
         }
         if (c.monedaIntermediaId && monedaFuente === c.monedaIntermediaId) {

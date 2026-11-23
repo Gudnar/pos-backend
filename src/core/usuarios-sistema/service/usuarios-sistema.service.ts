@@ -41,7 +41,8 @@ export class UsuariosSistemaService {
     const { sucursales, estado: estadoDto, ...usuarioData } = dto
     const estado = estadoDto === 'inactivo' ? Status.INACTIVE : Status.ACTIVE
 
-    const nuevo = this.usuarioRepo.create({
+    // Se arma de nuevo en cada intento: @BeforeInsert hashea la contraseña sobre la instancia
+    const nuevo = () => this.usuarioRepo.create({
       usuario: usuarioData.usuario,
       contrasena: usuarioData.contrasena,
       nombres: usuarioData.nombres,
@@ -54,7 +55,18 @@ export class UsuariosSistemaService {
       transaccion: Transacccion.CREAR,
       usuarioCreacion,
     })
-    const saved = await this.usuarioRepo.save(nuevo)
+    let saved: Usuario
+    try {
+      saved = await this.usuarioRepo.save(nuevo())
+    } catch (e: any) {
+      // Secuencia del id atrasada (p. ej. tras restaurar un respaldo con ids explícitos):
+      // se sincroniza con el máximo id existente y se reintenta una vez
+      if (e?.code !== '23505' || !String(e?.detail || '').includes('(id)')) throw e
+      await this.usuarioRepo.query(
+        `SELECT setval(pg_get_serial_sequence('usuario', 'id'), (SELECT COALESCE(MAX(id), 1) FROM usuario))`,
+      )
+      saved = await this.usuarioRepo.save(nuevo())
+    }
 
     if (sucursales?.length) {
       await this._sincronizar(clienteId, (saved as any).id, sucursales, usuarioCreacion)
@@ -108,7 +120,11 @@ export class UsuariosSistemaService {
       ? await this.sucursalRepo.findByIds(sucursalIds)
       : []
     const { contrasena, ...safe } = u as any
-    return { ...safe, sucursales: sucursales.map(s => ({ id: s.id, nombre: s.nombre })) }
+    return {
+      ...safe,
+      activo: u.estado !== Status.INACTIVE,
+      sucursales: sucursales.map(s => ({ id: s.id, nombre: s.nombre })),
+    }
   }
 
   private async _sincronizar(clienteId: string, usuarioId: string, sucursalIds: string[], actor: string): Promise<void> {
