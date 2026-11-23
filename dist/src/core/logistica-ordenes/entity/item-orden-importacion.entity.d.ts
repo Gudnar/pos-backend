@@ -8,6 +8,12 @@ export declare class ItemOrdenImportacion extends AuditoriaEntity {
     cantidadUnidades: number;
     precioUnitarioMonedaCompra: number;
     tipoCambio: number;
+    tcPaso1?: number | null;
+    tcOperacion?: string | null;
+    monedaIntermediaId?: string | null;
+    montoIntermedio?: number | null;
+    tcPaso2?: number | null;
+    tcPaso2Operacion?: string | null;
     monedaCompraId?: string;
     precioUnitarioMonedaBase?: number;
     subtotalMonedaCompra?: number;

@@ -48,9 +48,33 @@ __decorate([
     __metadata("design:type", Number)
 ], ItemOrdenImportacion.prototype, "precioUnitarioMonedaCompra", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'tipo_cambio', type: 'decimal', precision: 15, scale: 6 }),
+    (0, typeorm_1.Column)({ name: 'tipo_cambio', type: 'decimal', precision: 20, scale: 12 }),
     __metadata("design:type", Number)
 ], ItemOrdenImportacion.prototype, "tipoCambio", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_paso1', type: 'decimal', precision: 20, scale: 10, nullable: true }),
+    __metadata("design:type", Object)
+], ItemOrdenImportacion.prototype, "tcPaso1", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_operacion', type: 'varchar', length: 12, nullable: true }),
+    __metadata("design:type", Object)
+], ItemOrdenImportacion.prototype, "tcOperacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'moneda_intermedia_id', type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], ItemOrdenImportacion.prototype, "monedaIntermediaId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'monto_intermedio', type: 'decimal', precision: 18, scale: 2, nullable: true }),
+    __metadata("design:type", Object)
+], ItemOrdenImportacion.prototype, "montoIntermedio", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_paso2', type: 'decimal', precision: 20, scale: 10, nullable: true }),
+    __metadata("design:type", Object)
+], ItemOrdenImportacion.prototype, "tcPaso2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'tc_paso2_operacion', type: 'varchar', length: 12, nullable: true }),
+    __metadata("design:type", Object)
+], ItemOrdenImportacion.prototype, "tcPaso2Operacion", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'moneda_compra_id', type: 'uuid', nullable: true }),
     __metadata("design:type", String)

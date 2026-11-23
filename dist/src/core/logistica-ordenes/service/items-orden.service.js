@@ -19,12 +19,49 @@ const typeorm_2 = require("typeorm");
 const item_orden_importacion_entity_1 = require("../entity/item-orden-importacion.entity");
 const constants_1 = require("../../../common/constants");
 const response_messages_1 = require("../../../common/constants/response-messages");
-const aCentavos = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+const conversion_moneda_1 = require("../../../common/lib/conversion-moneda");
+function camposConversionItem(dto, actual) {
+    const r = {};
+    if (dto.tipoCambio !== undefined)
+        r.tcPaso1 = Number(dto.tipoCambio);
+    if (dto.tcOperacion !== undefined)
+        r.tcOperacion = dto.tcOperacion;
+    else if (dto.tipoCambio !== undefined && !actual.tcOperacion)
+        r.tcOperacion = 'MULTIPLICAR';
+    if (dto.monedaIntermediaId !== undefined)
+        r.monedaIntermediaId = dto.monedaIntermediaId || null;
+    if (dto.tcPaso2 !== undefined)
+        r.tcPaso2 = dto.tcPaso2;
+    if (dto.tcPaso2Operacion !== undefined)
+        r.tcPaso2Operacion = dto.tcPaso2Operacion;
+    const inter = r.monedaIntermediaId !== undefined ? r.monedaIntermediaId : actual.monedaIntermediaId;
+    if (!inter) {
+        r.monedaIntermediaId = null;
+        r.tcPaso2 = null;
+        r.tcPaso2Operacion = null;
+    }
+    return r;
+}
 function calcularMontosItem(item, totalCompra) {
     const cant = Number(item.cantidadUnidades) || 0;
-    const tc = Number(item.tipoCambio) || 0;
-    const total = aCentavos(totalCompra);
-    const totalBase = aCentavos(total * tc);
+    const total = (0, conversion_moneda_1.aCentavos)(totalCompra);
+    let totalBase;
+    if (item.tcPaso1 != null && Number(item.tcPaso1) > 0) {
+        const conv = (0, conversion_moneda_1.calcularConversion)(total, {
+            tipoCambio: Number(item.tcPaso1),
+            tcOperacion: item.tcOperacion,
+            monedaIntermediaId: item.monedaIntermediaId,
+            tcPaso2: item.tcPaso2 != null ? Number(item.tcPaso2) : null,
+            tcPaso2Operacion: item.tcPaso2Operacion,
+        });
+        totalBase = conv.montoBase;
+        item.montoIntermedio = conv.montoIntermedio;
+        item.tipoCambio = conv.tipoCambio;
+    }
+    else {
+        totalBase = (0, conversion_moneda_1.aCentavos)(total * (Number(item.tipoCambio) || 0));
+        item.montoIntermedio = null;
+    }
     item.subtotalMonedaCompra = total;
     item.subtotalMonedaBase = totalBase;
     item.precioUnitarioMonedaCompra = cant > 0 ? Number((total / cant).toFixed(10)) : 0;
@@ -59,6 +96,7 @@ let ItemsOrdenService = class ItemsOrdenService {
         const { totalDeCompra, ...datos } = dto;
         const item = this.repo.create({
             ...datos,
+            ...camposConversionItem(dto, {}),
             clienteId,
             ordenImportacionId: ordenId,
             estado: constants_1.Status.ACTIVE,
@@ -77,7 +115,7 @@ let ItemsOrdenService = class ItemsOrdenService {
             await this.validarProductoUnico(ordenId, clienteId, dto.productoId, id);
         }
         const { totalDeCompra, ...datos } = dto;
-        Object.assign(item, datos);
+        Object.assign(item, datos, camposConversionItem(dto, item));
         let total;
         if (totalDeCompra != null)
             total = Number(totalDeCompra);

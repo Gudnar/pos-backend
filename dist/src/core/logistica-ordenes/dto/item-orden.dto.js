@@ -15,6 +15,27 @@ class CreateItemOrdenDto {
 }
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", String)
+], CreateItemOrdenDto.prototype, "tcOperacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], CreateItemOrdenDto.prototype, "monedaIntermediaId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], CreateItemOrdenDto.prototype, "tcPaso2", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", Object)
+], CreateItemOrdenDto.prototype, "tcPaso2Operacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
@@ -52,6 +73,27 @@ __decorate([
 exports.CreateItemOrdenDto = CreateItemOrdenDto;
 class UpdateItemOrdenDto {
 }
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", String)
+], UpdateItemOrdenDto.prototype, "tcOperacion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], UpdateItemOrdenDto.prototype, "monedaIntermediaId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], UpdateItemOrdenDto.prototype, "tcPaso2", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['MULTIPLICAR', 'DIVIDIR']),
+    __metadata("design:type", Object)
+], UpdateItemOrdenDto.prototype, "tcPaso2Operacion", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
