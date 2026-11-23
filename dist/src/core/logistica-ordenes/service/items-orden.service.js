@@ -12,13 +12,25 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ItemsOrdenService = void 0;
+exports.ItemsOrdenService = exports.calcularMontosItem = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const item_orden_importacion_entity_1 = require("../entity/item-orden-importacion.entity");
 const constants_1 = require("../../../common/constants");
 const response_messages_1 = require("../../../common/constants/response-messages");
+const aCentavos = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+function calcularMontosItem(item, totalCompra) {
+    const cant = Number(item.cantidadUnidades) || 0;
+    const tc = Number(item.tipoCambio) || 0;
+    const total = aCentavos(totalCompra);
+    const totalBase = aCentavos(total * tc);
+    item.subtotalMonedaCompra = total;
+    item.subtotalMonedaBase = totalBase;
+    item.precioUnitarioMonedaCompra = cant > 0 ? Number((total / cant).toFixed(10)) : 0;
+    item.precioUnitarioMonedaBase = cant > 0 ? Number((totalBase / cant).toFixed(10)) : 0;
+}
+exports.calcularMontosItem = calcularMontosItem;
 let ItemsOrdenService = class ItemsOrdenService {
     constructor(repo) {
         this.repo = repo;
@@ -44,33 +56,37 @@ let ItemsOrdenService = class ItemsOrdenService {
     async crear(clienteId, ordenId, dto, usuarioCreacion) {
         if (dto.productoId)
             await this.validarProductoUnico(ordenId, clienteId, dto.productoId);
-        const tc = Number(dto.tipoCambio);
-        const pUnit = Number(dto.precioUnitarioMonedaCompra);
-        const cant = Number(dto.cantidadUnidades);
-        return this.repo.save(this.repo.create({
-            ...dto,
+        const { totalDeCompra, ...datos } = dto;
+        const item = this.repo.create({
+            ...datos,
             clienteId,
             ordenImportacionId: ordenId,
-            precioUnitarioMonedaBase: pUnit * tc,
-            subtotalMonedaCompra: pUnit * cant,
-            subtotalMonedaBase: pUnit * tc * cant,
             estado: constants_1.Status.ACTIVE,
             transaccion: constants_1.Transacccion.CREAR,
             usuarioCreacion,
-        }));
+        });
+        const total = totalDeCompra != null
+            ? Number(totalDeCompra)
+            : Number(dto.precioUnitarioMonedaCompra) * Number(dto.cantidadUnidades);
+        calcularMontosItem(item, total);
+        return this.repo.save(item);
     }
     async actualizar(clienteId, ordenId, id, dto, usuarioModificacion) {
         const item = await this.obtener(clienteId, ordenId, id);
         if (dto.productoId && dto.productoId !== item.productoId) {
             await this.validarProductoUnico(ordenId, clienteId, dto.productoId, id);
         }
-        Object.assign(item, dto);
-        const tc = Number(item.tipoCambio);
-        const pUnit = Number(item.precioUnitarioMonedaCompra);
-        const cant = Number(item.cantidadUnidades);
-        item.precioUnitarioMonedaBase = pUnit * tc;
-        item.subtotalMonedaCompra = pUnit * cant;
-        item.subtotalMonedaBase = pUnit * tc * cant;
+        const { totalDeCompra, ...datos } = dto;
+        Object.assign(item, datos);
+        let total;
+        if (totalDeCompra != null)
+            total = Number(totalDeCompra);
+        else if (dto.precioUnitarioMonedaCompra != null || dto.cantidadUnidades != null || item.subtotalMonedaCompra == null) {
+            total = Number(item.precioUnitarioMonedaCompra) * Number(item.cantidadUnidades);
+        }
+        else
+            total = Number(item.subtotalMonedaCompra);
+        calcularMontosItem(item, total);
         Object.assign(item, { transaccion: constants_1.Transacccion.ACTUALIZAR, usuarioModificacion });
         return this.repo.save(item);
     }

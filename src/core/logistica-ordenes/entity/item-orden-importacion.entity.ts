@@ -21,7 +21,7 @@ export class ItemOrdenImportacion extends AuditoriaEntity {
   @Column({ name: 'cantidad_unidades', type: 'int' })
   cantidadUnidades: number
 
-  @Column({ name: 'precio_unitario_moneda_compra', type: 'decimal', precision: 15, scale: 4 })
+  @Column({ name: 'precio_unitario_moneda_compra', type: 'decimal', precision: 20, scale: 10 })
   precioUnitarioMonedaCompra: number
 
   @Column({ name: 'tipo_cambio', type: 'decimal', precision: 15, scale: 6 })
@@ -30,7 +30,7 @@ export class ItemOrdenImportacion extends AuditoriaEntity {
   @Column({ name: 'moneda_compra_id', type: 'uuid', nullable: true })
   monedaCompraId?: string
 
-  @Column({ name: 'precio_unitario_moneda_base', type: 'decimal', precision: 15, scale: 4, nullable: true })
+  @Column({ name: 'precio_unitario_moneda_base', type: 'decimal', precision: 20, scale: 10, nullable: true })
   precioUnitarioMonedaBase?: number
 
   @Column({ name: 'subtotal_moneda_compra', type: 'decimal', precision: 15, scale: 2, nullable: true })

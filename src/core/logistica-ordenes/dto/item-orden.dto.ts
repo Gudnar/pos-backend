@@ -1,6 +1,10 @@
 import { IsInt, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator'
 
 export class CreateItemOrdenDto {
+  /** Total de la línea en moneda de compra (lo que dice la factura). Si viene, manda sobre el precio unitario */
+  @IsOptional() @IsNumber() @Min(0)
+  totalDeCompra?: number
+
   @IsOptional() @IsUUID()
   productoId?: string
 
@@ -21,6 +25,10 @@ export class CreateItemOrdenDto {
 }
 
 export class UpdateItemOrdenDto {
+  /** Total de la línea en moneda de compra (lo que dice la factura). Si viene, manda sobre el precio unitario */
+  @IsOptional() @IsNumber() @Min(0)
+  totalDeCompra?: number
+
   @IsOptional() @IsUUID()
   productoId?: string
 

@@ -21,6 +21,7 @@ const item_orden_importacion_entity_1 = require("../entity/item-orden-importacio
 const pago_proveedor_importacion_entity_1 = require("../entity/pago-proveedor-importacion.entity");
 const gasto_logistica_entity_1 = require("../entity/gasto-logistica.entity");
 const precio_producto_entity_1 = require("../../productos/entity/precio-producto.entity");
+const items_orden_service_1 = require("./items-orden.service");
 const lotes_service_1 = require("../../lotes/service/lotes.service");
 const constants_1 = require("../../../common/constants");
 const response_messages_1 = require("../../../common/constants/response-messages");
@@ -136,12 +137,10 @@ let OrdenesImportacionService = class OrdenesImportacionService {
         if (!items.length)
             throw new common_1.BadRequestException('La orden no tiene productos registrados.');
         for (const item of items) {
-            const tc = Number(item.tipoCambio);
-            const pUnitCompra = Number(item.precioUnitarioMonedaCompra);
-            const cant = Number(item.cantidadUnidades);
-            item.precioUnitarioMonedaBase = pUnitCompra * tc;
-            item.subtotalMonedaCompra = pUnitCompra * cant;
-            item.subtotalMonedaBase = item.precioUnitarioMonedaBase * cant;
+            const total = item.subtotalMonedaCompra != null
+                ? Number(item.subtotalMonedaCompra)
+                : Number(item.precioUnitarioMonedaCompra) * Number(item.cantidadUnidades);
+            (0, items_orden_service_1.calcularMontosItem)(item, total);
         }
         const totalProductosMonedaCompra = items.reduce((s, i) => s + Number(i.subtotalMonedaCompra), 0);
         const totalProductosMonedaBase = items.reduce((s, i) => s + Number(i.subtotalMonedaBase), 0);

@@ -15,6 +15,12 @@ class CreateItemOrdenDto {
 }
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateItemOrdenDto.prototype, "totalDeCompra", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateItemOrdenDto.prototype, "productoId", void 0);
@@ -46,6 +52,12 @@ __decorate([
 exports.CreateItemOrdenDto = CreateItemOrdenDto;
 class UpdateItemOrdenDto {
 }
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateItemOrdenDto.prototype, "totalDeCompra", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)(),

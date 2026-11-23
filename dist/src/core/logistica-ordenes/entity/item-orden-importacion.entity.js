@@ -44,7 +44,7 @@ __decorate([
     __metadata("design:type", Number)
 ], ItemOrdenImportacion.prototype, "cantidadUnidades", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'precio_unitario_moneda_compra', type: 'decimal', precision: 15, scale: 4 }),
+    (0, typeorm_1.Column)({ name: 'precio_unitario_moneda_compra', type: 'decimal', precision: 20, scale: 10 }),
     __metadata("design:type", Number)
 ], ItemOrdenImportacion.prototype, "precioUnitarioMonedaCompra", void 0);
 __decorate([
@@ -56,7 +56,7 @@ __decorate([
     __metadata("design:type", String)
 ], ItemOrdenImportacion.prototype, "monedaCompraId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'precio_unitario_moneda_base', type: 'decimal', precision: 15, scale: 4, nullable: true }),
+    (0, typeorm_1.Column)({ name: 'precio_unitario_moneda_base', type: 'decimal', precision: 20, scale: 10, nullable: true }),
     __metadata("design:type", Number)
 ], ItemOrdenImportacion.prototype, "precioUnitarioMonedaBase", void 0);
 __decorate([

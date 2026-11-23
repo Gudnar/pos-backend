@@ -6,6 +6,24 @@ import { Status, Transacccion } from '../../../common/constants'
 import { Messages } from '../../../common/constants/response-messages'
 import { CreateItemOrdenDto, UpdateItemOrdenDto } from '../dto/item-orden.dto'
 
+const aCentavos = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
+
+/**
+ * Montos de un ítem a partir del TOTAL de la línea (el de la factura), no del precio unitario:
+ * 16,210.57 / 28,000 = 0.578949 por unidad; si se partía del unitario redondeado (0.5789)
+ * el subtotal quedaba en 16,209.20 y no cuadraba con lo registrado.
+ */
+export function calcularMontosItem(item: ItemOrdenImportacion, totalCompra: number): void {
+  const cant = Number(item.cantidadUnidades) || 0
+  const tc = Number(item.tipoCambio) || 0
+  const total = aCentavos(totalCompra)
+  const totalBase = aCentavos(total * tc)
+  item.subtotalMonedaCompra = total
+  item.subtotalMonedaBase = totalBase
+  item.precioUnitarioMonedaCompra = cant > 0 ? Number((total / cant).toFixed(10)) : 0
+  item.precioUnitarioMonedaBase = cant > 0 ? Number((totalBase / cant).toFixed(10)) : 0
+}
+
 @Injectable()
 export class ItemsOrdenService {
   constructor(
@@ -35,22 +53,20 @@ export class ItemsOrdenService {
 
   async crear(clienteId: string, ordenId: string, dto: CreateItemOrdenDto, usuarioCreacion: string): Promise<ItemOrdenImportacion> {
     if (dto.productoId) await this.validarProductoUnico(ordenId, clienteId, dto.productoId)
-    const tc = Number(dto.tipoCambio)
-    const pUnit = Number(dto.precioUnitarioMonedaCompra)
-    const cant = Number(dto.cantidadUnidades)
-    return this.repo.save(
-      this.repo.create({
-        ...dto,
-        clienteId,
-        ordenImportacionId: ordenId,
-        precioUnitarioMonedaBase: pUnit * tc,
-        subtotalMonedaCompra: pUnit * cant,
-        subtotalMonedaBase: pUnit * tc * cant,
-        estado: Status.ACTIVE,
-        transaccion: Transacccion.CREAR,
-        usuarioCreacion,
-      }),
-    )
+    const { totalDeCompra, ...datos } = dto
+    const item = this.repo.create({
+      ...datos,
+      clienteId,
+      ordenImportacionId: ordenId,
+      estado: Status.ACTIVE,
+      transaccion: Transacccion.CREAR,
+      usuarioCreacion,
+    })
+    const total = totalDeCompra != null
+      ? Number(totalDeCompra)
+      : Number(dto.precioUnitarioMonedaCompra) * Number(dto.cantidadUnidades)
+    calcularMontosItem(item, total)
+    return this.repo.save(item)
   }
 
   async actualizar(clienteId: string, ordenId: string, id: string, dto: UpdateItemOrdenDto, usuarioModificacion: string): Promise<ItemOrdenImportacion> {
@@ -58,13 +74,15 @@ export class ItemsOrdenService {
     if (dto.productoId && dto.productoId !== item.productoId) {
       await this.validarProductoUnico(ordenId, clienteId, dto.productoId, id)
     }
-    Object.assign(item, dto)
-    const tc = Number(item.tipoCambio)
-    const pUnit = Number(item.precioUnitarioMonedaCompra)
-    const cant = Number(item.cantidadUnidades)
-    item.precioUnitarioMonedaBase = pUnit * tc
-    item.subtotalMonedaCompra = pUnit * cant
-    item.subtotalMonedaBase = pUnit * tc * cant
+    const { totalDeCompra, ...datos } = dto
+    Object.assign(item, datos)
+    // El total de la factura manda; si no viene, se respeta el guardado salvo que cambie precio o cantidad
+    let total: number
+    if (totalDeCompra != null) total = Number(totalDeCompra)
+    else if (dto.precioUnitarioMonedaCompra != null || dto.cantidadUnidades != null || item.subtotalMonedaCompra == null) {
+      total = Number(item.precioUnitarioMonedaCompra) * Number(item.cantidadUnidades)
+    } else total = Number(item.subtotalMonedaCompra)
+    calcularMontosItem(item, total)
     Object.assign(item, { transaccion: Transacccion.ACTUALIZAR, usuarioModificacion })
     return this.repo.save(item)
   }

@@ -1,6 +1,7 @@
 import { Repository } from 'typeorm';
 import { ItemOrdenImportacion } from '../entity/item-orden-importacion.entity';
 import { CreateItemOrdenDto, UpdateItemOrdenDto } from '../dto/item-orden.dto';
+export declare function calcularMontosItem(item: ItemOrdenImportacion, totalCompra: number): void;
 export declare class ItemsOrdenService {
     private readonly repo;
     constructor(repo: Repository<ItemOrdenImportacion>);

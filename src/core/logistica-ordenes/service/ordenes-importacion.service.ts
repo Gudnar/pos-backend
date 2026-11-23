@@ -6,6 +6,7 @@ import { ItemOrdenImportacion } from '../entity/item-orden-importacion.entity'
 import { PagoProveedorImportacion } from '../entity/pago-proveedor-importacion.entity'
 import { GastoLogistica } from '../entity/gasto-logistica.entity'
 import { PrecioProducto } from '../../productos/entity/precio-producto.entity'
+import { calcularMontosItem } from './items-orden.service'
 import { LotesService } from '../../lotes/service/lotes.service'
 import { Status, Transacccion } from '../../../common/constants'
 import { Messages } from '../../../common/constants/response-messages'
@@ -132,12 +133,11 @@ export class OrdenesImportacionService {
 
     // 1. Calcular subtotales por ítem
     for (const item of items) {
-      const tc = Number(item.tipoCambio)
-      const pUnitCompra = Number(item.precioUnitarioMonedaCompra)
-      const cant = Number(item.cantidadUnidades)
-      item.precioUnitarioMonedaBase = pUnitCompra * tc
-      item.subtotalMonedaCompra = pUnitCompra * cant
-      item.subtotalMonedaBase = item.precioUnitarioMonedaBase * cant
+      // Parte del total guardado de la línea (exacto); solo registros sin total usan unitario × cantidad
+      const total = item.subtotalMonedaCompra != null
+        ? Number(item.subtotalMonedaCompra)
+        : Number(item.precioUnitarioMonedaCompra) * Number(item.cantidadUnidades)
+      calcularMontosItem(item, total)
     }
 
     // 2. Totales
