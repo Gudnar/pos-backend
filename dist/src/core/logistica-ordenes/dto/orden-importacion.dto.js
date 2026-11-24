@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CerrarOrdenDto = exports.PrecioVentaManualItemDto = exports.ProponerPreciosDto = exports.ComponenteFormulaDto = exports.GastoOverrideDto = exports.FormulaDto = exports.RedondeoFormulaDto = exports.PasoFormulaDto = exports.UpdateOrdenImportacionDto = exports.CreateOrdenImportacionDto = void 0;
+exports.CerrarOrdenDto = exports.PrecioVentaManualItemDto = exports.ProponerPreciosDto = exports.ComponenteFormulaDto = exports.GastoOverrideDto = exports.FormulaDto = exports.FormulaItemDto = exports.RedondeoFormulaDto = exports.PasoFormulaDto = exports.UpdateOrdenImportacionDto = exports.CreateOrdenImportacionDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 class CreateOrdenImportacionDto {
@@ -140,6 +140,26 @@ __decorate([
     __metadata("design:type", Number)
 ], RedondeoFormulaDto.prototype, "multiplo", void 0);
 exports.RedondeoFormulaDto = RedondeoFormulaDto;
+class FormulaItemDto {
+}
+__decorate([
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], FormulaItemDto.prototype, "itemId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => PasoFormulaDto),
+    __metadata("design:type", Array)
+], FormulaItemDto.prototype, "pasos", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsPositive)(),
+    __metadata("design:type", Number)
+], FormulaItemDto.prototype, "precio", void 0);
+exports.FormulaItemDto = FormulaItemDto;
 class FormulaDto {
 }
 __decorate([
@@ -158,6 +178,13 @@ __decorate([
     (0, class_transformer_1.Type)(() => RedondeoFormulaDto),
     __metadata("design:type", RedondeoFormulaDto)
 ], FormulaDto.prototype, "redondeo", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => FormulaItemDto),
+    __metadata("design:type", Array)
+], FormulaDto.prototype, "porItem", void 0);
 exports.FormulaDto = FormulaDto;
 class GastoOverrideDto {
 }

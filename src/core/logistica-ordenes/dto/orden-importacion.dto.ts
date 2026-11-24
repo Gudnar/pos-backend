@@ -78,6 +78,18 @@ export class RedondeoFormulaDto {
   multiplo?: number
 }
 
+/** Ajuste de la fórmula para un producto: precio fijo, o pasos propios en lugar de los generales */
+export class FormulaItemDto {
+  @IsUUID()
+  itemId: string
+
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => PasoFormulaDto)
+  pasos?: PasoFormulaDto[]
+
+  @IsOptional() @IsNumber() @IsPositive()
+  precio?: number
+}
+
 export class FormulaDto {
   @IsIn(['costoTotal', 'costoProducto'])
   base: string
@@ -87,6 +99,9 @@ export class FormulaDto {
 
   @IsOptional() @ValidateNested() @Type(() => RedondeoFormulaDto)
   redondeo?: RedondeoFormulaDto
+
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => FormulaItemDto)
+  porItem?: FormulaItemDto[]
 }
 
 export class GastoOverrideDto {

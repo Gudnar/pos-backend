@@ -11,6 +11,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateRolClienteDto = exports.CreateRolClienteDto = exports.UpdateUsuarioClienteDto = exports.CreateUsuarioClienteDto = exports.UpdateMiCuentaDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const vacioANull = () => (0, class_transformer_1.Transform)(({ value }) => (value === '' ? null : value));
 class UpdateMiCuentaDto {
 }
 __decorate([
@@ -80,9 +82,10 @@ __decorate([
     __metadata("design:type", String)
 ], CreateUsuarioClienteDto.prototype, "apellidos", void 0);
 __decorate([
+    vacioANull(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], CreateUsuarioClienteDto.prototype, "correoElectronico", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -90,9 +93,10 @@ __decorate([
     __metadata("design:type", String)
 ], CreateUsuarioClienteDto.prototype, "rol", void 0);
 __decorate([
+    vacioANull(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], CreateUsuarioClienteDto.prototype, "rolClienteId", void 0);
 exports.CreateUsuarioClienteDto = CreateUsuarioClienteDto;
 class UpdateUsuarioClienteDto {
@@ -108,9 +112,10 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateUsuarioClienteDto.prototype, "apellidos", void 0);
 __decorate([
+    vacioANull(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], UpdateUsuarioClienteDto.prototype, "correoElectronico", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -124,9 +129,10 @@ __decorate([
     __metadata("design:type", String)
 ], UpdateUsuarioClienteDto.prototype, "contrasena", void 0);
 __decorate([
+    vacioANull(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], UpdateUsuarioClienteDto.prototype, "rolClienteId", void 0);
 exports.UpdateUsuarioClienteDto = UpdateUsuarioClienteDto;
 class CreateRolClienteDto {

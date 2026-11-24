@@ -62,8 +62,8 @@ __decorate([
     __metadata("design:type", String)
 ], Usuario.prototype, "contrasena", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'correo_electronico', length: 150, nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ name: 'correo_electronico', type: 'varchar', length: 150, nullable: true }),
+    __metadata("design:type", Object)
 ], Usuario.prototype, "correoElectronico", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'nombres', length: 150 }),

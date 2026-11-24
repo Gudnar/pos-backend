@@ -185,7 +185,7 @@ let MiCuentaService = class MiCuentaService {
             throw new common_1.ConflictException(response_messages_1.Messages.CONFLICT);
         if (dto.rolClienteId)
             await this.obtenerRol(clienteId, dto.rolClienteId);
-        const nuevo = this.usuarioRepo.create({
+        const nuevo = () => this.usuarioRepo.create({
             ...dto,
             clienteId,
             rol: dto.rol || constants_1.Roles.COLABORADOR,
@@ -193,7 +193,16 @@ let MiCuentaService = class MiCuentaService {
             transaccion: constants_1.Transacccion.CREAR,
             usuarioCreacion,
         });
-        const saved = await this.usuarioRepo.save(nuevo);
+        let saved;
+        try {
+            saved = await this.usuarioRepo.save(nuevo());
+        }
+        catch (e) {
+            if (e?.code !== '23505' || !String(e?.detail || '').includes('(id)'))
+                throw e;
+            await this.usuarioRepo.query(`SELECT setval(pg_get_serial_sequence('usuario', 'id'), (SELECT COALESCE(MAX(id), 1) FROM usuario))`);
+            saved = await this.usuarioRepo.save(nuevo());
+        }
         const { contrasena, ...rest } = saved;
         return rest;
     }

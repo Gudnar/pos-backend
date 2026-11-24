@@ -20,17 +20,17 @@ export declare class CreateUsuarioClienteDto {
     contrasena: string;
     nombres: string;
     apellidos?: string;
-    correoElectronico?: string;
+    correoElectronico?: string | null;
     rol?: string;
-    rolClienteId?: string;
+    rolClienteId?: string | null;
 }
 export declare class UpdateUsuarioClienteDto {
     nombres?: string;
     apellidos?: string;
-    correoElectronico?: string;
+    correoElectronico?: string | null;
     rol?: string;
     contrasena?: string;
-    rolClienteId?: string;
+    rolClienteId?: string | null;
 }
 export declare class CreateRolClienteDto {
     nombre: string;

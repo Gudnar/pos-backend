@@ -186,7 +186,8 @@ export class MiCuentaService {
 
     if (dto.rolClienteId) await this.obtenerRol(clienteId, dto.rolClienteId)
 
-    const nuevo = this.usuarioRepo.create({
+    // Se arma en cada intento: @BeforeInsert hashea la contraseña sobre la instancia
+    const nuevo = () => this.usuarioRepo.create({
       ...dto,
       clienteId,
       rol: dto.rol || Roles.COLABORADOR,
@@ -194,7 +195,17 @@ export class MiCuentaService {
       transaccion: Transacccion.CREAR,
       usuarioCreacion,
     })
-    const saved = await this.usuarioRepo.save(nuevo)
+    let saved: Usuario
+    try {
+      saved = await this.usuarioRepo.save(nuevo())
+    } catch (e: any) {
+      // Secuencia del id atrasada (p. ej. tras restaurar un respaldo): se sincroniza y se reintenta una vez
+      if (e?.code !== '23505' || !String(e?.detail || '').includes('(id)')) throw e
+      await this.usuarioRepo.query(
+        `SELECT setval(pg_get_serial_sequence('usuario', 'id'), (SELECT COALESCE(MAX(id), 1) FROM usuario))`,
+      )
+      saved = await this.usuarioRepo.save(nuevo())
+    }
     const { contrasena, ...rest } = saved
     return rest
   }

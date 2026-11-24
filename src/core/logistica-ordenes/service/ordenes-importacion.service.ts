@@ -272,10 +272,19 @@ export class OrdenesImportacionService {
         margen = costoUnitPrecio > 0 ? ((precioSugerido / costoUnitPrecio) - 1) * 100 : 0
       } else if (dto.formula) {
         // ── MODO FÓRMULA ─────────────────────────────────────────────────
-        const baseVal = dto.formula.base === 'costoProducto'
-          ? Number(item.precioUnitarioMonedaBase)
-          : costoUnitPrecio
-        precioSugerido = aplicarFormula(baseVal, dto.formula)
+        // Por producto: precio fijo > pasos propios > pasos generales
+        const ajuste = dto.formula.porItem?.find(p => p.itemId === item.id)
+        if (ajuste?.precio) {
+          precioSugerido = Number(ajuste.precio)
+          item.precioVentaManual = precioSugerido
+        } else {
+          const baseVal = dto.formula.base === 'costoProducto'
+            ? Number(item.precioUnitarioMonedaBase)
+            : costoUnitPrecio
+          const pasos = ajuste?.pasos?.length ? ajuste.pasos : dto.formula.pasos
+          precioSugerido = aplicarFormula(baseVal, { ...dto.formula, pasos })
+          item.precioVentaManual = null as any
+        }
         margen = costoUnitPrecio > 0 ? ((precioSugerido / costoUnitPrecio) - 1) * 100 : 0
       } else {
         // ── MODO MARGEN SIMPLE ───────────────────────────────────────────
@@ -318,7 +327,12 @@ export class OrdenesImportacionService {
               return `CompraUnit:${Number(item.precioUnitarioMonedaBase ?? 0).toFixed(4)}×${dto.componenteCompra.multiplicador} | LogUnit:${((totalGastosPrecioBase * factorPrecio) / Number(item.cantidadUnidades)).toFixed(4)}×${dto.componenteLogistica.multiplicador} | Gastos:${gastosParaPrecio.length}/${(gastos as GastoLogistica[]).length}${ajustesTexto ? ' | ' + ajustesTexto : ''}`
             })()
           : dto.formula
-          ? `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula: ${dto.formula.base} → ${dto.formula.pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula.redondeo?.tipo})` : ''}`
+          ? (() => {
+              const ajuste = dto.formula!.porItem?.find(p => p.itemId === item.id)
+              if (ajuste?.precio) return `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Precio fijado: ${precioSugerido.toFixed(4)} (${margen.toFixed(2)}% sobre costo)`
+              const pasos = ajuste?.pasos?.length ? ajuste.pasos : dto.formula!.pasos
+              return `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Fórmula${ajuste?.pasos?.length ? ' propia' : ''}: ${dto.formula!.base} → ${pasos.map(p => `${p.operacion}(${p.valor})`).join(' → ')}${dto.formula!.redondeo?.tipo !== 'ninguno' ? ` → redondeo(${dto.formula!.redondeo?.tipo})` : ''}`
+            })()
           : `Costo precio: ${costoUnitPrecio.toFixed(4)}${gastosDesc}${tcDesc} | Margen: ${margen.toFixed(2)}%`
 
         let precio = await this.precioRepo.findOne({

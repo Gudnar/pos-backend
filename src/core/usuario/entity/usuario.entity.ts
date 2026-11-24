@@ -21,8 +21,8 @@ export class Usuario extends AuditoriaEntity {
   @Column({ name: 'contrasena', length: 255 })
   contrasena: string
 
-  @Column({ name: 'correo_electronico', length: 150, nullable: true })
-  correoElectronico?: string
+  @Column({ name: 'correo_electronico', type: 'varchar', length: 150, nullable: true })
+  correoElectronico?: string | null
 
   @Column({ name: 'nombres', length: 150 })
   nombres: string

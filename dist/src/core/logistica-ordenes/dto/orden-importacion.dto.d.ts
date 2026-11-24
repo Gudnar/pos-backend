@@ -29,10 +29,16 @@ export declare class RedondeoFormulaDto {
     tipo: string;
     multiplo?: number;
 }
+export declare class FormulaItemDto {
+    itemId: string;
+    pasos?: PasoFormulaDto[];
+    precio?: number;
+}
 export declare class FormulaDto {
     base: string;
     pasos: PasoFormulaDto[];
     redondeo?: RedondeoFormulaDto;
+    porItem?: FormulaItemDto[];
 }
 export declare class GastoOverrideDto {
     gastoId: string;
